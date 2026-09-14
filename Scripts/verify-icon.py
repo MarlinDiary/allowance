@@ -35,13 +35,20 @@ if car.exists():
     result = subprocess.run(["/usr/bin/assetutil", "--info", str(car)], check=True, capture_output=True, text=True)
     items = json.loads(result.stdout)
     counts = dict(collections.Counter(item.get("AssetType", "metadata") for item in items))
+    def check_material(value):
+        if isinstance(value, dict):
+            assert not value.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
+            for child in value.values():
+                check_material(child)
+        elif isinstance(value, list):
+            for child in value:
+                check_material(child)
+    check_material(items)
     for item in items:
         if item.get("AssetType") == "Icon Image":
             assert item["PixelWidth"] == item["PixelHeight"], "Non-square compiled icon"
         if item.get("AssetType") == "IconImageStack":
             assert item["CanvasWidth"] == item["CanvasHeight"], "Non-square layered canvas"
-        if item.get("AssetType") == "IconGroup":
-            assert not item.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
     assert counts.get("IconImageStack", 0) >= 1, "Missing layered icon stack"
     assert counts.get("IconGroup", 0) >= 3, "Missing material groups"
     assert counts.get("Vector", 0) >= 3, "Artwork flattened unexpectedly"
