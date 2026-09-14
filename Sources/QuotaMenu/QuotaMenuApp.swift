@@ -13,6 +13,10 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var observation: CredentialObservation?
     private var menuIsOpen = false
     private var resetMonitor: ResetMonitor?
+    private var shortcutTestTimer: Timer?
+    private var shortcutTestPath: String?
+    private var shortcutTestDispatched = false
+    private var shortcutTestMenuWasOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menu.autoenablesItems = false
@@ -34,6 +38,8 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keychain.tag = 1
         keychain.isHidden = true
         menu.addItem(keychain)
+        MenuQuitShortcut.install(in: menu, target: NSApplication.shared,
+            action: #selector(NSApplication.terminate(_:)))
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = MenuMetrics.statusIcon()
@@ -66,6 +72,24 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         updateReadouts()
+        if let i = CommandLine.arguments.firstIndex(of: "--quit-shortcut-test"), CommandLine.arguments.indices.contains(i + 1) {
+            shortcutTestPath = CommandLine.arguments[i + 1]
+            let timer = Timer(timeInterval: 2, repeats: false) { [weak self] _ in
+                // This timer is installed only on the main run loop below.
+                MainActor.assumeIsolated {
+                    guard let self, let event = MenuQuitShortcut.testEvent(
+                        windowNumber: self.informationItems.first?.view?.window?.windowNumber ?? 0) else { return }
+                    self.shortcutTestDispatched = true
+                    self.shortcutTestMenuWasOpen = self.menuIsOpen
+                    self.writeShortcutTestEvidence(stage: "dispatching")
+                    // Owned event queue, normal native menu tracking; no direct quit call.
+                    NSApplication.shared.postEvent(event, atStart: true)
+                    self.writeShortcutTestEvidence(stage: "posted")
+                }
+            }
+            shortcutTestTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
+        }
         if CommandLine.arguments.contains("--preview") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
                 self?.statusItem?.button?.performClick(nil)
@@ -73,7 +97,22 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { observation?.stop(); resetMonitor?.stop() }
+    func applicationWillTerminate(_ notification: Notification) {
+        observation?.stop(); resetMonitor?.stop(); shortcutTestTimer?.invalidate()
+        writeShortcutTestEvidence(stage: "terminated")
+    }
+
+    private func writeShortcutTestEvidence(stage: String) {
+        guard let path = shortcutTestPath else { return }
+        let record: [String: Any] = ["stage": stage, "nativeCommandQDispatched": shortcutTestDispatched,
+            "menuWasOpenOnDispatch": shortcutTestMenuWasOpen,
+            "applicationWillTerminateObserved": stage == "terminated",
+            "visibleMenuTitles": menu.items.filter { !$0.isHidden }.map(\.title),
+            "quitItemVisible": menu.items.contains { $0.tag == MenuQuitShortcut.tag && !$0.isHidden }]
+        if let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) {
+            try? data.write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
+    }
 
     func menuWillOpen(_ menu: NSMenu) {
         menuIsOpen = true
@@ -133,6 +172,12 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         record["informationRows"] = informationItems.map {
             ["title": $0.title, "enabled": $0.isEnabled, "hasAction": $0.action != nil,
              "width": $0.view?.frame.width ?? 0, "height": $0.view?.frame.height ?? 0] as [String: Any]
+        }
+        if let quit = menu.item(withTag: MenuQuitShortcut.tag) {
+            record["hiddenQuitShortcut"] = ["key": quit.keyEquivalent,
+                "commandOnly": quit.keyEquivalentModifierMask == .command,
+                "hidden": quit.isHidden, "enabled": quit.isEnabled,
+                "allowedWhenHidden": quit.allowsKeyEquivalentWhenHidden] as [String: Any]
         }
         record["actions"] = menu.items.filter { $0.action != nil && !$0.isHidden }.map(\.title)
         if let data = try? JSONSerialization.data(withJSONObject: record, options: [.prettyPrinted, .sortedKeys]) {

@@ -18,8 +18,10 @@ Download the ZIP or DMG from [Releases](https://github.com/MarlinDiary/allowance
 move **Allowance.app** into Applications, and open it. Existing Codex / Claude Code
 logins are used; no separate sign-in screen. Allow notifications when macOS asks.
 To change notification access later, use System Settings → Notifications → Allowance.
-The normal menu is information-only, with no Quit command or quit shortcut. Use
-Activity Monitor to quit the app. A Keychain access command appears only when
+The normal menu is information-only, with no visible Quit command. **Command-Q
+while the menu is open** quits through a hidden native menu command. This is not a
+global hotkey and never captures Command-Q from another foreground app. Activity
+Monitor can also quit the app. A Keychain access command appears only when
 permission is needed. No automatic launch-at-login modification.
 
 ## Data sources and quiet refreshes
