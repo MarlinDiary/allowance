@@ -8,7 +8,7 @@ weekly** allowance. English UI. No dashboard, no main window, no Refresh button.
 - **Slow · Steady · Fast** compares usage with elapsed time in the weekly window
   (a five-percentage-point tolerance). These words describe pace, not model mode.
 - Native `NSMenu` presentation, SwiftUI information rows, a two-tone SwiftUI quota bar and bundled template
-  artwork. No custom glass, popover or hover explanations.
+  artwork. No separator lines, custom glass, popover or hover explanations.
 - Tibo's explicit upcoming reset announcements and confirmed executions become
   standard macOS notifications. Banked resets and AI forecasts are excluded.
 

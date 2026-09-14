@@ -28,7 +28,6 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.view = host
             informationItems.append(item)
             menu.addItem(item)
-            menu.addItem(.separator())
         }
         let keychain = NSMenuItem(title: "Allow Keychain Access…", action: #selector(allowClaudeAccess), keyEquivalent: "")
         keychain.target = self

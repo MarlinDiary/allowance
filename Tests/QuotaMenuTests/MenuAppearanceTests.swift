@@ -143,7 +143,6 @@ final class MenuAppearanceTests: XCTestCase {
             let content = VStack(spacing: 0) {
                 UsageInformationView(readout: MenuReadout(snapshot: snapshots[0], now: renderNow, issue: issues[snapshots[0].provider]))
                     .frame(height: MenuMetrics.informationHeight)
-                Divider()
                 UsageInformationView(readout: MenuReadout(snapshot: snapshots[1], now: renderNow, issue: issues[snapshots[1].provider]))
                     .frame(height: MenuMetrics.informationHeight)
             }
@@ -153,7 +152,7 @@ final class MenuAppearanceTests: XCTestCase {
             let host = NSHostingView(rootView: content)
             host.appearance = NSAppearance(named: appearance)
             host.frame = NSRect(x: 0, y: 0, width: MenuMetrics.width,
-                                height: MenuMetrics.informationHeight * 2 + 1)
+                                height: MenuMetrics.informationHeight * 2)
             let window = NSWindow(contentRect: host.frame, styleMask: .borderless,
                                   backing: .buffered, defer: false)
             window.appearance = host.appearance
