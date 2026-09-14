@@ -75,7 +75,7 @@ final class ResetMonitor: NSObject, UNUserNotificationCenterDelegate {
         }
         var request = URLRequest(url: URL(string: "https://codex-resets.com/api/v1/status")!)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Allowance/0.6.7", forHTTPHeaderField: "User-Agent")
+        request.setValue("Allowance/0.6.8", forHTTPHeaderField: "User-Agent")
         if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
         do {
             let (bytes, response) = try await session.data(for: request)

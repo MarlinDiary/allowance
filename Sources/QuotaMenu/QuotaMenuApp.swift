@@ -34,9 +34,6 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keychain.tag = 1
         keychain.isHidden = true
         menu.addItem(keychain)
-        let quit = NSMenuItem(title: "Quit Allowance", action: #selector(quit), keyEquivalent: "q")
-        quit.target = self
-        menu.addItem(quit)
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = MenuMetrics.statusIcon()
@@ -145,7 +142,6 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // The user explicitly invokes the system permission prompt; background reads never prompt.
     @objc private func allowClaudeAccess() { Task { await model.refresh(allowClaudeInteraction: true) } }
-    @objc private func quit() { NSApplication.shared.terminate(nil) }
 }
 
 @MainActor
