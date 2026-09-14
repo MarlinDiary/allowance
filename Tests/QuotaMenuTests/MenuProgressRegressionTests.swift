@@ -45,7 +45,10 @@ final class MenuProgressRegressionTests: XCTestCase {
             XCTAssertEqual(first, second, accuracy: 0.04)
             let filledYs = try (58..<82).filter { abs(try brightness(40, $0) - first) < 0.02 }
             XCTAssertGreaterThanOrEqual(filledYs.count, 6)
-            XCTAssertLessThanOrEqual(filledYs.count, 12)
+            // Small progress artwork uses its 12pt native canvas differently
+            // between OS releases. Never force that canvas down to the layout slot.
+            let nativeCanvasPixels = Int(NativeUsageBar.makeIndicator(for: scheme).intrinsicContentSize.height * 2)
+            XCTAssertLessThanOrEqual(filledYs.count, nativeCanvasPixels)
             if #available(macOS 27, *) { XCTAssertEqual(filledYs.count, 12) } // complete native capsule
             if scheme == .dark { XCTAssertLessThan(first, 0.75) }
             let track = try brightness(440, 69)

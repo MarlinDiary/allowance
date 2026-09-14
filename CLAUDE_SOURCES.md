@@ -1,4 +1,4 @@
-# Claude Fable usage sources (Allowance 0.6.4)
+# Claude Fable usage sources (Allowance 0.6.5)
 
 Independent implementation using Apple-provided frameworks only. CodexBar was
 consulted for endpoint/data-shape behavior; its implementation is not included.

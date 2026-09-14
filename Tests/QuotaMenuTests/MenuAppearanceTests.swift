@@ -32,7 +32,11 @@ final class MenuAppearanceTests: XCTestCase {
     func testMenuBarIconMatchesCompactReferenceSize() {
         let icon = MenuMetrics.statusIcon()
         XCTAssertTrue(icon.isTemplate)
-        XCTAssertEqual(icon.size, NSSize(width: 18, height: 18))
+        // SF Symbols' natural canvas is 17pt on macOS 15, 18pt on macOS 27.
+        // The actual native button glyph is 30px at 2x on both (separate test).
+        XCTAssertEqual(icon.size.width, icon.size.height)
+        XCTAssertGreaterThanOrEqual(icon.size.width, 17)
+        XCTAssertLessThanOrEqual(icon.size.width, 18)
         XCTAssertEqual(MenuMetrics.statusImageScaling, .scaleNone)
     }
 
