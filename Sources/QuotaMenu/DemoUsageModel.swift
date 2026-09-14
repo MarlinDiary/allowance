@@ -61,7 +61,7 @@ final class DemoUsageModel: ObservableObject {
         let record: [String: Any] = [
             "pid": ProcessInfo.processInfo.processIdentifier,
             "bundleID": Bundle.main.bundleIdentifier ?? "",
-            "presentation": "NSMenu + NSHostingView", "customDrawing": false, "uiLanguage": "en",
+            "presentation": "NSMenu + NSHostingView", "customDrawing": true, "uiLanguage": "en",
             "mode": "demo", "networkRequests": 0, "liveCredentialsAccessed": false,
             "scenario": scenario.rawValue, "isSwitching": isSwitching,
             "status": statusText,

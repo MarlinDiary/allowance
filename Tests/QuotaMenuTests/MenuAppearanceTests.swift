@@ -6,15 +6,10 @@ import XCTest
 
 @MainActor
 final class MenuAppearanceTests: XCTestCase {
-    func testProgressUsesRecommendedNativeSizeAndAppearance() {
-        for (scheme, appearance) in [(ColorScheme.light, NSAppearance.Name.aqua), (.dark, .darkAqua)] {
-            let indicator = NativeUsageBar.makeIndicator(for: scheme)
-            XCTAssertEqual(indicator.style, .bar)
-            XCTAssertEqual(indicator.controlSize, .small)
-            XCTAssertFalse(indicator.isIndeterminate)
-            XCTAssertEqual(indicator.appearance?.name, appearance)
-            XCTAssertEqual(indicator.frame.height, indicator.intrinsicContentSize.height)
-            XCTAssertGreaterThan(indicator.frame.height, 4) // never squash native drawing
+    func testProgressHasCompleteThinGeometryAndClampsInvalidValues() {
+        XCTAssertEqual(NativeUsageBar.height, 4)
+        for (input, expected) in [(0.29, 0.29), (-1.0, 0.0), (2.0, 1.0), (Double.nan, 0.0), (Double.infinity, 0.0)] {
+            XCTAssertEqual(NativeUsageBar(used: input, scheme: .light).fraction, expected)
         }
     }
 

@@ -4,11 +4,11 @@ A small, native macOS menu-bar utility for **Codex weekly** and **Claude Code Fa
 weekly** allowance. English UI. No dashboard, no main window, no Refresh button.
 
 - Shows the currently signed-in CLI account's remaining percentage and reset time.
-- A thin system progress bar shows **used** quota; the empty portion is remaining.
+- A thin, read-only quota bar shows **used** quota; the empty portion is remaining.
 - **Slow · Steady · Fast** compares usage with elapsed time in the weekly window
   (a five-percentage-point tolerance). These words describe pace, not model mode.
-- Native `NSMenu` presentation, SwiftUI information rows, an AppKit progress indicator and bundled template
-  artwork. No custom glass, popover, drawing or hover explanations.
+- Native `NSMenu` presentation, SwiftUI information rows, a two-tone SwiftUI quota bar and bundled template
+  artwork. No custom glass, popover or hover explanations.
 - Tibo's explicit upcoming reset announcements and confirmed executions become
   standard macOS notifications. Banked resets and AI forecasts are excluded.
 
@@ -55,10 +55,11 @@ are global-feed observations, not proof that every account has already updated.
 macOS permission, Focus and notification settings control presentation. This is
 periodic polling, not a server APNs subscription.
 
-The bar uses Apple's existing small `NSProgressIndicator` at its recommended
-native control size. Only its own appearance is synchronized with the row. Its
-opacity is softened; no forced intrinsic height, clipped capacity cell, custom
-progress drawing or unsupported tint API is used.
+The read-only bar uses two standard SwiftUI `Capsule` shapes at **4pt**, not a
+compressed AppKit control. A stronger used fill and faint remaining track stay
+distinct on light, dark and wallpaper-tinted menu backdrops. Increased Contrast
+raises the distinction further. The native menu material, position, dimensions,
+text sizes and actions are unchanged. Filled always means used, never remaining.
 
 ## Privacy
 

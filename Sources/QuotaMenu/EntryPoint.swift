@@ -52,10 +52,10 @@ enum EntryPoint {
             let result: [String: Any] = [
                 "mode": "fixture-check", "runtimeDefault": "live", "nativeFramework": "AppKit + SwiftUI",
                 "presentation": "NSMenu + NSHostingView", "minimumMacOS": "13.0", "uiLanguage": "en",
-                "customViews": true, "customDrawing": false, "customPanel": false,
+                "customViews": true, "customDrawing": true, "customPanel": false,
                 "liveCredentialsAccessed": false, "networkRequests": 0,
                 "remaining": snapshots.map(\.remainingText),
-                "progressStyle": "AppKit.NSProgressIndicator.bar.small.nativeSize", "progressMeaning": "filled = used; empty = remaining",
+                "progressStyle": "SwiftUI.Capsule.readOnly.4pt", "progressMeaning": "filled = used; empty = remaining",
                 "progressValues": snapshots.compactMap(\.remainingFraction).map { 1 - $0 },
                 "informationWidth": MenuMetrics.width, "informationHeight": MenuMetrics.informationHeight,
                 "visibleAccountSubtitle": false,

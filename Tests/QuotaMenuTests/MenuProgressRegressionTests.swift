@@ -43,20 +43,15 @@ final class MenuProgressRegressionTests: XCTestCase {
             let second = try brightness(40, 209)
             print("Independent menu rows \(name): Codex fill=\(first), Claude fill=\(second)")
             XCTAssertEqual(first, second, accuracy: 0.04)
-            let filledYs = try (58..<82).filter { abs(try brightness(40, $0) - first) < 0.02 }
-            XCTAssertGreaterThanOrEqual(filledYs.count, 6)
-            // Small progress artwork uses its 12pt native canvas differently
-            // between OS releases. Never force that canvas down to the layout slot.
-            let reference = NSProgressIndicator()
-            reference.style = .bar; reference.controlSize = .small; reference.sizeToFit()
-            let nativeCanvasPixels = Int(reference.intrinsicContentSize.height * 2)
-            XCTAssertLessThanOrEqual(filledYs.count, nativeCanvasPixels)
-            if #available(macOS 27, *) { XCTAssertEqual(filledYs.count, 12) } // complete native capsule
-            if scheme == .dark { XCTAssertLessThan(first, 0.75) }
+            let background = scheme == .light ? 0.7 : 0.2
+            let filledYs = try (58..<82).filter { abs(try brightness(40, $0) - background) > 0.10 }
+            XCTAssertEqual(filledYs.count, 8) // complete 4pt capsule at 2x, on every OS
             let track = try brightness(440, 69)
-            XCTAssertGreaterThan(abs(first - track), 0.003) // visible without heavy contrast
-            if scheme == .light { XCTAssertGreaterThan(first, 0.5) } // softer than rejected 0.36
-            else { XCTAssertGreaterThan(first, track) }
+            XCTAssertGreaterThanOrEqual(abs(first - track), 0.12)
+            if scheme == .light {
+                XCTAssertGreaterThan(first, 0.40) // not the heavy rejected 0.36
+                XCTAssertLessThan(first, track)
+            } else { XCTAssertGreaterThan(first, track) }
             if let path = ProcessInfo.processInfo.environment["QUOTA_RENDER_DIR"] {
                 try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
                 try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path).appendingPathComponent("independent-\(name).png"))

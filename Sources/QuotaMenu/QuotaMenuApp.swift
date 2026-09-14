@@ -112,7 +112,9 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         record["pid"] = ProcessInfo.processInfo.processIdentifier
         record["presentation"] = "NSMenu + NSHostingView"
         record["uiLanguage"] = "en"
-        record["customDrawing"] = false
+        record["customDrawing"] = true
+        record["progressRenderer"] = "SwiftUI.Capsule.readOnly"
+        record["progressHeight"] = NativeUsageBar.height
         record["customPanel"] = false
         record["menuOpen"] = menuIsOpen
         record["menuWidth"] = menu.size.width
@@ -177,7 +179,7 @@ struct UsageInformationView: View {
                     .opacity(0.75)
                     .accessibilityLabel("Weekly quota used")
                     .accessibilityValue("\(Int((used * 100).rounded()))% used")
-                    .frame(height: 4)
+                    .frame(height: NativeUsageBar.height)
                 HStack(alignment: .firstTextBaseline) {
                     Text(readout.reset)
                     Spacer(minLength: 8)
