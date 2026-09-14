@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.13
+
+- Unify the ring, allowance arc and needle into one foreground SVG and one shared material group, above the separate glass backplate. Preserve geometry, colors and quiet material settings; native menu and menu-bar glyph are unchanged.
+- Validate the compiled foreground plane in every appearance, with regression checks against split groups and nested highlights.
+
 ## 0.6.12
 
 - Keep the three material layers but disable optically uneven specular highlights, reduce shadows to 8% and translucency to 4%. Preserve circular gauge geometry and native menu UI.

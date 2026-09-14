@@ -4,47 +4,11 @@
   },
   "groups": [
     {
-      "name": "Needle",
+      "name": "Gauge",
       "layers": [
         {
-          "image-name": "03 Needle.svg",
-          "name": "Needle"
-        }
-      ],
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.08
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.04
-      },
-      "specular": false
-    },
-    {
-      "name": "Allowance",
-      "layers": [
-        {
-          "image-name": "02 Allowance.svg",
-          "name": "Allowance"
-        }
-      ],
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.08
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.04
-      },
-      "specular": false
-    },
-    {
-      "name": "Track",
-      "layers": [
-        {
-          "image-name": "01 Track.svg",
-          "name": "Track"
+          "image-name": "Gauge.svg",
+          "name": "Gauge"
         }
       ],
       "shadow": {

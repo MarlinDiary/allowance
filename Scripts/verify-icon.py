@@ -8,50 +8,75 @@ import plistlib
 import subprocess
 import xml.etree.ElementTree as ET
 
-parser = argparse.ArgumentParser()
-parser.add_argument("app", type=Path)
-parser.add_argument("--require-layered", action="store_true")
-args = parser.parse_args()
-root = Path(__file__).resolve().parent.parent
-source = root / "Assets/AppIcon.icon"
-document = json.loads((source / "icon.json").read_text())
-groups = document["groups"]
-assert [g["name"] for g in groups] == ["Needle", "Allowance", "Track"], "Front-to-back layer order changed"
-for group in groups:
-    assert group["translucency"]["enabled"]
-    assert group["specular"] is False, "Overly strong edge highlights returned"
-    for layer in group["layers"]:
-        svg = ET.parse(source / "Assets" / layer["image-name"]).getroot()
-        assert svg.attrib["viewBox"] == "0 0 1024 1024"
-        assert svg.attrib["width"] == svg.attrib["height"] == "1024"
-        assert len(svg), "Empty artwork layer"
-resources = args.app / "Contents/Resources"
-assert (resources / "AppIcon.icns").read_bytes()[:4] == b"icns", "Invalid legacy ICNS"
-info = plistlib.loads((args.app / "Contents/Info.plist").read_bytes())
-car = resources / "Assets.car"
-counts = {}
-if car.exists():
-    assert info.get("CFBundleIconName") == "AppIcon"
-    result = subprocess.run(["/usr/bin/assetutil", "--info", str(car)], check=True, capture_output=True, text=True)
-    items = json.loads(result.stdout)
+
+def check_material(value):
+    if isinstance(value, dict):
+        assert not value.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
+        for child in value.values():
+            check_material(child)
+    elif isinstance(value, list):
+        for child in value:
+            check_material(child)
+
+
+def validate_compiled_layout(items):
     counts = dict(collections.Counter(item.get("AssetType", "metadata") for item in items))
-    def check_material(value):
-        if isinstance(value, dict):
-            assert not value.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
-            for child in value.values():
-                check_material(child)
-        elif isinstance(value, list):
-            for child in value:
-                check_material(child)
     check_material(items)
+    stacks = [item for item in items if item.get("AssetType") == "IconImageStack"]
+    assert stacks, "Missing layered icon stack"
     for item in items:
         if item.get("AssetType") == "Icon Image":
             assert item["PixelWidth"] == item["PixelHeight"], "Non-square compiled icon"
-        if item.get("AssetType") == "IconImageStack":
-            assert item["CanvasWidth"] == item["CanvasHeight"], "Non-square layered canvas"
-    assert counts.get("IconImageStack", 0) >= 1, "Missing layered icon stack"
-    assert counts.get("IconGroup", 0) >= 3, "Missing material groups"
-    assert counts.get("Vector", 0) >= 3, "Artwork flattened unexpectedly"
-elif args.require_layered:
-    raise SystemExit("Missing layered Assets.car")
-print(json.dumps({"sourceLayers": 3, "layered": car.exists(), "legacyICNS": True, "compiledAssets": counts}, sort_keys=True))
+        if item.get("AssetType") == "IconGroup":
+            assert item["Name"] == "AppIcon/Gauge", "Split foreground material groups returned"
+            assert item["LayerCount"] == 1 and len(item["Layers"]) == 1, "Gauge must be one artwork layer"
+            assert item["Layers"][0]["AssetType"] == "Vector", "Gauge vector missing"
+    for stack in stacks:
+        assert stack["CanvasWidth"] == stack["CanvasHeight"], "Non-square layered canvas"
+        assert stack["LayerCount"] == 2, "Expected separate backplate plus one foreground plane"
+        # assetutil lists variants of the same group together inside each stack.
+        foreground = [layer for layer in stack["Layers"] if layer.get("AssetType") == "IconGroup"]
+        background = [layer for layer in stack["Layers"] if layer.get("AssetType") != "IconGroup"]
+        assert len(background) == 1, "Separate glass backplate missing"
+        assert foreground and all(layer["Name"] == "AppIcon/Gauge" for layer in foreground), "Split foreground material groups returned"
+        appearances = [layer.get("Appearance", "default") for layer in foreground]
+        assert len(appearances) == len(set(appearances)), "Multiple foreground planes in one appearance"
+    assert counts.get("IconGroup", 0) >= 1, "Missing foreground material group"
+    assert counts.get("Vector", 0) == 1, "Expected one complete foreground vector"
+    return counts
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("app", type=Path)
+    parser.add_argument("--require-layered", action="store_true")
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parent.parent
+    source = root / "Assets/AppIcon.icon"
+    document = json.loads((source / "icon.json").read_text())
+    groups = document["groups"]
+    assert len(groups) == 1 and groups[0]["name"] == "Gauge", "Expected one shared foreground material group"
+    group = groups[0]
+    assert group["layers"] == [{"image-name": "Gauge.svg", "name": "Gauge"}], "Gauge must be one artwork layer"
+    assert group["translucency"]["enabled"]
+    assert group["specular"] is False, "Overly strong edge highlights returned"
+    svg = ET.parse(source / "Assets/Gauge.svg").getroot()
+    assert svg.attrib["viewBox"] == "0 0 1024 1024"
+    assert svg.attrib["width"] == svg.attrib["height"] == "1024"
+    assert len(svg) == 4, "Gauge ring, arc, needle and hub are required"
+    resources = args.app / "Contents/Resources"
+    assert (resources / "AppIcon.icns").read_bytes()[:4] == b"icns", "Invalid legacy ICNS"
+    info = plistlib.loads((args.app / "Contents/Info.plist").read_bytes())
+    car = resources / "Assets.car"
+    counts = {}
+    if car.exists():
+        assert info.get("CFBundleIconName") == "AppIcon"
+        result = subprocess.run(["/usr/bin/assetutil", "--info", str(car)], check=True, capture_output=True, text=True)
+        counts = validate_compiled_layout(json.loads(result.stdout))
+    elif args.require_layered:
+        raise SystemExit("Missing layered Assets.car")
+    print(json.dumps({"sourceLayers": 1, "foregroundGroups": 1, "layered": car.exists(), "legacyICNS": True, "compiledAssets": counts}, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

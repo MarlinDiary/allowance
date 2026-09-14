@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Account-free regression checks for release guardrails."""
+import copy
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -8,6 +10,43 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
+SPEC = importlib.util.spec_from_file_location("verify_icon", ROOT / "Scripts/verify-icon.py")
+VERIFY_ICON = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(VERIFY_ICON)
+
+
+class IconPlaneTests(unittest.TestCase):
+    def setUp(self):
+        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Gauge"}
+        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "LayerCount": 1, "Layers": [self.vector]}
+        self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 2,
+                      "Layers": [{"Name": "AppIcon_Assets/Gradient-1"},
+                                 {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "Appearance": "NSAppearanceNameAqua"}]}
+        self.items = [self.vector, self.group, self.stack]
+
+    def test_one_foreground_plane_above_backplate_passes(self):
+        self.assertEqual(VERIFY_ICON.validate_compiled_layout(self.items)["Vector"], 1)
+
+    def test_independent_material_groups_are_rejected(self):
+        self.group["Name"] = "AppIcon/Needle"
+        with self.assertRaisesRegex(AssertionError, "Split foreground"):
+            VERIFY_ICON.validate_compiled_layout(self.items)
+
+    def test_split_artwork_inside_shared_group_is_rejected(self):
+        self.group["Layers"].append(copy.deepcopy(self.vector))
+        self.group["LayerCount"] = 2
+        with self.assertRaisesRegex(AssertionError, "one artwork layer"):
+            VERIFY_ICON.validate_compiled_layout(self.items)
+
+    def test_nested_specular_annotation_is_rejected(self):
+        self.stack["Layers"][1]["LayerHasSpecular"] = True
+        with self.assertRaisesRegex(AssertionError, "highlight annotation"):
+            VERIFY_ICON.validate_compiled_layout(self.items)
+
+    def test_duplicate_foreground_plane_in_one_appearance_is_rejected(self):
+        self.stack["Layers"].append(copy.deepcopy(self.stack["Layers"][1]))
+        with self.assertRaisesRegex(AssertionError, "Multiple foreground planes"):
+            VERIFY_ICON.validate_compiled_layout(self.items)
 
 
 class BuildToolsTests(unittest.TestCase):
