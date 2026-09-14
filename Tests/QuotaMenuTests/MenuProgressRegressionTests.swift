@@ -47,7 +47,9 @@ final class MenuProgressRegressionTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(filledYs.count, 6)
             // Small progress artwork uses its 12pt native canvas differently
             // between OS releases. Never force that canvas down to the layout slot.
-            let nativeCanvasPixels = Int(NativeUsageBar.makeIndicator(for: scheme).intrinsicContentSize.height * 2)
+            let reference = NSProgressIndicator()
+            reference.style = .bar; reference.controlSize = .small; reference.sizeToFit()
+            let nativeCanvasPixels = Int(reference.intrinsicContentSize.height * 2)
             XCTAssertLessThanOrEqual(filledYs.count, nativeCanvasPixels)
             if #available(macOS 27, *) { XCTAssertEqual(filledYs.count, 12) } // complete native capsule
             if scheme == .dark { XCTAssertLessThan(first, 0.75) }
