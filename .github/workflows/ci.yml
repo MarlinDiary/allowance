@@ -1,0 +1,13 @@
+name: Native checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift test
+      - run: ALLOWANCE_ARCHS=arm64 bash build.sh
+      - run: dist/Allowance.app/Contents/MacOS/Allowance --self-check

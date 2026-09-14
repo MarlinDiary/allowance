@@ -1,0 +1,24 @@
+{
+  "retrieved": "2026-09-14",
+  "assets": [
+    {
+      "file": "OpenAI.svg",
+      "source": "https://cdn.jsdelivr.net/npm/simple-icons@13.0.0/icons/openai.svg",
+      "upstream": "https://github.com/simple-icons/simple-icons/tree/13.0.0",
+      "brandGuidelines": "https://openai.com/brand/",
+      "method": "OpenAI mark from the version-pinned Simple Icons catalog; exact original SVG path, used as monochrome template artwork, no colored background.",
+      "sha256": "730508e7487d4e4ba758bfcca3e4cdfd31953938efad6d506acd502858559db3",
+      "display": "Native template: white in dark appearance, dark in light appearance."
+    },
+    {
+      "file": "Claude.svg",
+      "source": "https://claude.com/",
+      "method": "Exact terracotta symbol path extracted from the official inline Claude wordmark. Geometry and fill unchanged; standalone 125x125 viewBox.",
+      "sha256": "2c98c5e8bc7c72a8faccaf501225ffe3ba2eb3a554e6bfc127c5485db1be3baf",
+      "display": "Native template: white in dark appearance, dark in light appearance."
+    }
+  ],
+  "notice": "Provider trademarks belong to their respective owners. Used only to identify provider data; no endorsement is implied.",
+  "reference": "CodexBar public screenshot reviewed for monochrome presentation only. No application implementation source copied.",
+  "referenceURL": "https://github.com/steipete/CodexBar/blob/main/docs/codexbar.png"
+}
