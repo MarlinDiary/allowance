@@ -2,8 +2,8 @@
 
 ## 0.6.13
 
-- Unify the ring, allowance arc and needle into one foreground SVG and one shared material group, above the separate glass backplate. Preserve geometry, colors and quiet material settings; native menu and menu-bar glyph are unchanged.
-- Validate the compiled foreground plane in every appearance, with regression checks against split groups and nested highlights.
+- Unify the ring, allowance arc and needle into one foreground SVG and one shared material group, above the separate glass backplate. Preserve geometry and colors; enable shared glass highlights with 16% neutral shadow and 12% translucency. Native menu and menu-bar glyph are unchanged.
+- Validate the compiled foreground plane in every appearance, with regression checks against split groups and missing foreground glass.
 
 ## 0.6.12
 

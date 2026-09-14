@@ -21,7 +21,7 @@ class IconPlaneTests(unittest.TestCase):
         self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "LayerCount": 1, "Layers": [self.vector]}
         self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 2,
                       "Layers": [{"Name": "AppIcon_Assets/Gradient-1"},
-                                 {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "Appearance": "NSAppearanceNameAqua"}]}
+                                 {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
         self.items = [self.vector, self.group, self.stack]
 
     def test_one_foreground_plane_above_backplate_passes(self):
@@ -38,9 +38,9 @@ class IconPlaneTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "one artwork layer"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
-    def test_nested_specular_annotation_is_rejected(self):
-        self.stack["Layers"][1]["LayerHasSpecular"] = True
-        with self.assertRaisesRegex(AssertionError, "highlight annotation"):
+    def test_missing_foreground_glass_is_rejected(self):
+        self.stack["Layers"][1]["LayerHasSpecular"] = False
+        with self.assertRaisesRegex(AssertionError, "glass highlights missing"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
     def test_duplicate_foreground_plane_in_one_appearance_is_rejected(self):

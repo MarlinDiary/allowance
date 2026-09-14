@@ -13,13 +13,13 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.08
+        "opacity": 0.16
       },
       "translucency": {
         "enabled": true,
-        "value": 0.04
+        "value": 0.12
       },
-      "specular": false
+      "specular": true
     }
   ],
   "supported-platforms": {

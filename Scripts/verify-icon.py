@@ -9,19 +9,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
-def check_material(value):
-    if isinstance(value, dict):
-        assert not value.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
-        for child in value.values():
-            check_material(child)
-    elif isinstance(value, list):
-        for child in value:
-            check_material(child)
-
-
 def validate_compiled_layout(items):
     counts = dict(collections.Counter(item.get("AssetType", "metadata") for item in items))
-    check_material(items)
     stacks = [item for item in items if item.get("AssetType") == "IconImageStack"]
     assert stacks, "Missing layered icon stack"
     for item in items:
@@ -39,6 +28,7 @@ def validate_compiled_layout(items):
         background = [layer for layer in stack["Layers"] if layer.get("AssetType") != "IconGroup"]
         assert len(background) == 1, "Separate glass backplate missing"
         assert foreground and all(layer["Name"] == "AppIcon/Gauge" for layer in foreground), "Split foreground material groups returned"
+        assert all(layer.get("LayerHasSpecular", False) for layer in foreground), "Foreground glass highlights missing"
         appearances = [layer.get("Appearance", "default") for layer in foreground]
         assert len(appearances) == len(set(appearances)), "Multiple foreground planes in one appearance"
     assert counts.get("IconGroup", 0) >= 1, "Missing foreground material group"
@@ -59,7 +49,7 @@ def main():
     group = groups[0]
     assert group["layers"] == [{"image-name": "Gauge.svg", "name": "Gauge"}], "Gauge must be one artwork layer"
     assert group["translucency"]["enabled"]
-    assert group["specular"] is False, "Overly strong edge highlights returned"
+    assert group["specular"] is True, "Shared foreground glass is disabled"
     svg = ET.parse(source / "Assets/Gauge.svg").getroot()
     assert svg.attrib["viewBox"] == "0 0 1024 1024"
     assert svg.attrib["width"] == svg.attrib["height"] == "1024"
