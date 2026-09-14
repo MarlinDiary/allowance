@@ -73,10 +73,7 @@ final class ResetMonitor: NSObject, UNUserNotificationCenterDelegate {
                 Task { await self.writeEvidence(to: CommandLine.arguments[i + 1]) }
             }
         }
-        var request = URLRequest(url: URL(string: "https://codex-resets.com/api/v1/status")!)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Allowance/0.6.9", forHTTPHeaderField: "User-Agent")
-        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        let request = Self.statusRequest(etag: etag)
         do {
             let (bytes, response) = try await session.data(for: request)
             guard !stopped, let http = response as? HTTPURLResponse else { return }
@@ -139,6 +136,14 @@ final class ResetMonitor: NSObject, UNUserNotificationCenterDelegate {
         if let data = try? JSONEncoder().encode(state) { defaults.set(data, forKey: key) }
     }
 
+    nonisolated static func statusRequest(etag: String?) -> URLRequest {
+        var request = URLRequest(url: URL(string: "https://codex-resets.com/api/v1/status")!)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        RequestIdentity.apply(to: &request)
+        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        return request
+    }
+
     nonisolated static func retryAfter(_ value: String?, now: Date) -> TimeInterval? {
         guard let value else { return nil }
         if let seconds = Double(value), seconds.isFinite, seconds >= 0 { return seconds }
@@ -150,6 +155,7 @@ final class ResetMonitor: NSObject, UNUserNotificationCenterDelegate {
     func writeEvidence(to path: String) async {
         let settings = await center.notificationSettings()
         let record: [String: Any] = ["notificationAuthorization": settings.authorizationStatus.rawValue,
+            "userAgent": Self.statusRequest(etag: nil).value(forHTTPHeaderField: "User-Agent") ?? "",
             "resetFeedHTTPStatus": lastHTTPStatus as Any? ?? NSNull(),
             "feedError": lastError as Any? ?? NSNull(),
             "baselineEstablished": state.initialized, "acceptedNoticesThisRun": acceptedNotices,

@@ -14,6 +14,8 @@
 
 Use a valid **Developer ID Application** identity and an **existing** notarytool Keychain profile. Never commit credentials.
 
+If a profile has not been configured, run `xcrun notarytool store-credentials Allowance-Notary` in your own terminal. Follow the interactive prompts; the app-specific password is entered at the secure prompt, not placed in command history or shared in a chat. The tool validates credentials before storing them. Then check `xcrun notarytool history --keychain-profile Allowance-Notary` before submitting a release.
+
 ```sh
 export CODE_SIGN_IDENTITY='Developer ID Application: YOUR NAME (TEAMID)'
 export NOTARY_PROFILE='your-existing-keychain-profile'
@@ -29,6 +31,7 @@ Without a usable profile, publish only an explicitly labeled signed **prerelease
 ## Public artifacts
 
 - App version/build, Git tag and release notes must agree.
+- HTTP clients use the app's bundled version for the User-Agent; do not maintain separate version literals in provider or reset requests.
 - Publish ZIP, DMG and SHA256SUMS, not caches or internal account evidence.
 - Download actual public assets; verify checksums, signature, compiled icon, stapling/Gatekeeper status and the DMG's Applications link.
 - Preserve Git/release history; do not replace versions or force-push.

@@ -54,6 +54,7 @@ enum EntryPoint {
                 "presentation": "NSMenu + NSHostingView", "minimumMacOS": "13.0", "uiLanguage": "en",
                 "customViews": true, "customDrawing": true, "customPanel": false,
                 "liveCredentialsAccessed": false, "networkRequests": 0,
+                "userAgent": RequestIdentity.userAgent,
                 "remaining": snapshots.map(\.remainingText),
                 "progressStyle": "SwiftUI.Capsule.readOnly.4pt", "progressMeaning": "filled = used; empty = remaining",
                 "progressValues": snapshots.compactMap(\.remainingFraction).map { 1 - $0 },

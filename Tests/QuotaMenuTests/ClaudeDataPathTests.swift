@@ -30,6 +30,8 @@ private actor ScriptedHTTP: UsageHTTPClient {
         guard !steps.isEmpty else { XCTFail("Unexpected extra request"); throw LiveReadError.network }
         let step = steps.removeFirst()
         XCTAssertEqual(request.url?.host, step.host); XCTAssertEqual(request.url?.path, step.path)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), version.map { "Allowance/" + $0 } ?? "Allowance")
         if step.host == "claude.ai" {
             XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
             XCTAssertNotNil(request.value(forHTTPHeaderField: "Cookie"))

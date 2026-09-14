@@ -96,7 +96,7 @@ actor LiveUsageTransport: QuotaFetching {
         var request = URLRequest(url: URL(string: endpoint)!)
         request.setValue("Bearer " + credential.accessToken, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Quota/0.6.3", forHTTPHeaderField: "User-Agent")
+        RequestIdentity.apply(to: &request)
         if credential.provider == .fable { request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta") }
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         return try await send(request)
@@ -113,7 +113,7 @@ actor LiveUsageTransport: QuotaFetching {
         var request = URLRequest(url: URL(string: "https://claude.ai/api/" + path)!)
         request.setValue("sessionKey=" + key, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Quota/0.6.3", forHTTPHeaderField: "User-Agent")
+        RequestIdentity.apply(to: &request)
         return try await send(request)
     }
     private func webIfAvailable(_ credential: LiveCredential) async throws -> UsageSnapshot? {
