@@ -4,6 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="${1:-$ROOT/dist/Allowance.app}"
 OUT="${2:-$ROOT/dist}"
 [[ -d "$APP" ]] || { echo "Build the app first" >&2; exit 1; }
+[[ "$(basename "$APP")" == Allowance.app ]] || { echo "Release bundle must be named Allowance.app" >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [[ "${REQUIRE_NOTARIZATION:-0}" != 1 || -n "${NOTARY_PROFILE:-}" ]] || { echo "NOTARY_PROFILE is required for a notarized release" >&2; exit 1; }
 mkdir -p "$OUT"

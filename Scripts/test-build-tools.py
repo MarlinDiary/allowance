@@ -36,6 +36,15 @@ class BuildToolsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Missing layered Assets.car", result.stderr)
 
+    def test_packaging_rejects_misnamed_bundle(self):
+        misnamed = self.root / "Release.app"
+        self.app.rename(misnamed)
+        out = self.root / "release"
+        result = subprocess.run(["bash", str(ROOT / "Scripts/package.sh"), str(misnamed), str(out)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Release bundle must be named Allowance.app", result.stderr)
+        self.assertFalse(out.exists())
+
     def test_unknown_icon_style_is_rejected(self):
         env = dict(os.environ, ALLOWANCE_ICON_STYLE="unexpected")
         result = subprocess.run(["bash", str(ROOT / "Scripts/build-icons.sh"), str(self.app), str(self.root / "scratch")], env=env, capture_output=True, text=True)

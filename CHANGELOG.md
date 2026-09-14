@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.6.10
+## 0.6.11
+
+- Correct release bundle naming and add a regression guard against temporary build names in public ZIPs. The 0.6.10 preview was withdrawn during public-package verification.
+
+## 0.6.10 (source; preview withdrawn)
 
 - Genuine three-group Liquid Glass app icon using Apple's Icon Composer format and asset compiler. Generated ICNS supports older macOS.
 - Existing native menu, menu-bar glyph, layout, bar colors and hidden Command-Q are unchanged.
