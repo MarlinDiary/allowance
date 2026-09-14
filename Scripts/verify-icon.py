@@ -17,9 +17,9 @@ def validate_compiled_layout(items):
         if item.get("AssetType") == "Icon Image":
             assert item["PixelWidth"] == item["PixelHeight"], "Non-square compiled icon"
         if item.get("AssetType") == "IconGroup":
-            assert item["Name"] == "AppIcon/Gauge", "Split foreground material groups returned"
-            assert item["LayerCount"] == 1 and len(item["Layers"]) == 1, "Gauge must be one artwork layer"
-            assert item["Layers"][0]["AssetType"] == "Vector", "Gauge vector missing"
+            assert item["Name"] == "AppIcon/Ring", "Split foreground material groups returned"
+            assert item["LayerCount"] == 1 and len(item["Layers"]) == 1, "Ring must be one artwork layer"
+            assert item["Layers"][0]["AssetType"] == "Vector", "Ring vector missing"
     for stack in stacks:
         assert stack["CanvasWidth"] == stack["CanvasHeight"], "Non-square layered canvas"
         assert stack["LayerCount"] == 2, "Expected separate backplate plus one foreground plane"
@@ -27,7 +27,7 @@ def validate_compiled_layout(items):
         foreground = [layer for layer in stack["Layers"] if layer.get("AssetType") == "IconGroup"]
         background = [layer for layer in stack["Layers"] if layer.get("AssetType") != "IconGroup"]
         assert len(background) == 1, "Separate glass backplate missing"
-        assert foreground and all(layer["Name"] == "AppIcon/Gauge" for layer in foreground), "Split foreground material groups returned"
+        assert foreground and all(layer["Name"] == "AppIcon/Ring" for layer in foreground), "Split foreground material groups returned"
         assert all(layer.get("LayerHasSpecular", False) for layer in foreground), "Foreground glass highlights missing"
         appearances = [layer.get("Appearance", "default") for layer in foreground]
         assert len(appearances) == len(set(appearances)), "Multiple foreground planes in one appearance"
@@ -45,15 +45,16 @@ def main():
     source = root / "Assets/AppIcon.icon"
     document = json.loads((source / "icon.json").read_text())
     groups = document["groups"]
-    assert len(groups) == 1 and groups[0]["name"] == "Gauge", "Expected one shared foreground material group"
+    assert len(groups) == 1 and groups[0]["name"] == "Ring", "Expected one shared foreground material group"
     group = groups[0]
-    assert group["layers"] == [{"image-name": "Gauge.svg", "name": "Gauge"}], "Gauge must be one artwork layer"
+    assert group["layers"] == [{"image-name": "Ring.svg", "name": "Ring"}], "Ring must be one artwork layer"
     assert group["translucency"]["enabled"]
     assert group["specular"] is True, "Shared foreground glass is disabled"
-    svg = ET.parse(source / "Assets/Gauge.svg").getroot()
+    svg = ET.parse(source / "Assets/Ring.svg").getroot()
     assert svg.attrib["viewBox"] == "0 0 1024 1024"
     assert svg.attrib["width"] == svg.attrib["height"] == "1024"
-    assert len(svg) == 4, "Gauge ring, arc, needle and hub are required"
+    assert len(svg) == 1 and svg[0].tag.endswith("}path"), "Expected a single open-ring silhouette"
+    assert svg[0].attrib["fill"] == "#c3cbd6" and "stroke" not in svg[0].attrib, "Expected monochrome filled ring"
     resources = args.app / "Contents/Resources"
     assert (resources / "AppIcon.icns").read_bytes()[:4] == b"icns", "Invalid legacy ICNS"
     info = plistlib.loads((args.app / "Contents/Info.plist").read_bytes())

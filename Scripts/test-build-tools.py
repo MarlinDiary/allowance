@@ -2,12 +2,15 @@
 """Account-free regression checks for release guardrails."""
 import copy
 import importlib.util
+import math
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+import re
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location("verify_icon", ROOT / "Scripts/verify-icon.py")
@@ -17,11 +20,11 @@ SPEC.loader.exec_module(VERIFY_ICON)
 
 class IconPlaneTests(unittest.TestCase):
     def setUp(self):
-        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Gauge"}
-        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "LayerCount": 1, "Layers": [self.vector]}
+        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Ring"}
+        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Ring", "LayerCount": 1, "Layers": [self.vector]}
         self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 2,
                       "Layers": [{"Name": "AppIcon_Assets/Gradient-1"},
-                                 {"AssetType": "IconGroup", "Name": "AppIcon/Gauge", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
+                                 {"AssetType": "IconGroup", "Name": "AppIcon/Ring", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
         self.items = [self.vector, self.group, self.stack]
 
     def test_one_foreground_plane_above_backplate_passes(self):
@@ -47,6 +50,34 @@ class IconPlaneTests(unittest.TestCase):
         self.stack["Layers"].append(copy.deepcopy(self.stack["Layers"][1]))
         with self.assertRaisesRegex(AssertionError, "Multiple foreground planes"):
             VERIFY_ICON.validate_compiled_layout(self.items)
+
+
+class RingArtworkTests(unittest.TestCase):
+    def setUp(self):
+        self.svg = ET.parse(ROOT / "Assets/AppIcon.icon/Assets/Ring.svg").getroot()
+        self.path = self.svg[0]
+
+    def test_monochrome_single_closed_silhouette(self):
+        self.assertEqual(len(self.svg), 1)
+        self.assertEqual(self.path.tag, "{http://www.w3.org/2000/svg}path")
+        self.assertEqual(self.path.attrib["fill"], "#c3cbd6")
+        self.assertNotIn("stroke", self.path.attrib)
+        commands = re.findall(r"[MAQLZ]", self.path.attrib["d"])
+        self.assertEqual(commands, ["M", "A", "Q", "L", "Q", "A", "Q", "L", "Q", "Z"])
+
+    def test_small_upper_right_gap_and_original_ring_width(self):
+        # Each Q starts at the theoretical circle/radial corner, before softening.
+        corners = re.findall(r"Q ([\d.]+) ([\d.]+)", self.path.attrib["d"])
+        points = [(float(x) - 512, float(y) - 512) for x, y in corners]
+        self.assertEqual(len(points), 4)
+        for (x, y), radius, angle in zip(points, [301, 231, 231, 301], [-53, -53, -37, -37]):
+            self.assertAlmostEqual(math.hypot(x, y), radius, delta=0.002)
+            self.assertAlmostEqual(math.degrees(math.atan2(y, x)), angle, delta=0.002)
+        self.assertAlmostEqual(math.hypot(*points[0]) - math.hypot(*points[1]), 70, delta=0.002)
+
+    def test_legacy_and_layered_foreground_match(self):
+        legacy = ET.parse(ROOT / "Assets/AppIcon.svg").getroot()
+        self.assertEqual(legacy[-1].attrib, self.path.attrib)
 
 
 class BuildToolsTests(unittest.TestCase):

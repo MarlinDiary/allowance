@@ -11,7 +11,7 @@ A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code Fable 
 - A thin, read-only bar: **filled = used; empty = remaining**.
 - Standard macOS notifications for Tibo's explicit reset announcements and confirmed resets.
 - Native `NSMenu`, compact SwiftUI information rows, English UI. No dashboard, main window, separator lines, Refresh button or hover explanations.
-- A layered Icon Composer app icon on macOS 26+: one complete gauge foreground above a separate glass backplate, with a generated legacy icon for older macOS. The white template menu-bar symbol is unchanged.
+- A layered Icon Composer app icon on macOS 26+: one silver open ring above a separate glass backplate, with a matching legacy icon for older macOS. The white template menu-bar symbol is unchanged.
 
 <p><img src="docs/images/menu-light.png" width="260" alt="Allowance light information rows"> <img src="docs/images/menu-dark.png" width="260" alt="Allowance dark information rows"></p>
 
@@ -75,7 +75,7 @@ open dist/Allowance.app
 ./dist/Allowance.app/Contents/MacOS/Allowance --live-check    # respects cooldown
 ```
 
-`ALLOWANCE_ARCHS=arm64` builds only Apple Silicon. `ALLOWANCE_BUILD_DIR` changes scratch storage. `ALLOWANCE_ICON_STYLE=layered` requires real layered compilation; `legacy` explicitly builds the original static SVG. Default `auto` uses Apple's layered compiler on Xcode 26+, otherwise the static fallback. Compiler failures are not silently hidden. The existing native menu route is unchanged.
+`ALLOWANCE_ARCHS=arm64` builds only Apple Silicon. `ALLOWANCE_BUILD_DIR` changes scratch storage. `ALLOWANCE_ICON_STYLE=layered` requires real layered compilation; `legacy` explicitly builds the matching static SVG. Default `auto` uses Apple's layered compiler on Xcode 26+, otherwise the static fallback. Compiler failures are not silently hidden. The existing native menu route is unchanged.
 
 See [contributing](CONTRIBUTING.md) and the [release checklist](docs/RELEASING.md). Internal Swift module names remain `QuotaMenu` / `QuotaCore` for continuity.
 

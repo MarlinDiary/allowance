@@ -4,11 +4,11 @@
   },
   "groups": [
     {
-      "name": "Gauge",
+      "name": "Ring",
       "layers": [
         {
-          "image-name": "Gauge.svg",
-          "name": "Gauge"
+          "image-name": "Ring.svg",
+          "name": "Ring"
         }
       ],
       "shadow": {
