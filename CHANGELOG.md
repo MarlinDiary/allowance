@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.12
+
+- Keep the three material layers but disable shape-distorting specular highlights, reduce shadows to 8% and translucency to 4%. Preserve circular gauge geometry and native menu UI.
+
 ## 0.6.11
 
 - Correct release bundle naming and add a regression guard against temporary build names in public ZIPs. The 0.6.10 preview was withdrawn during public-package verification.

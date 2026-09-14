@@ -13,12 +13,13 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.24
+        "opacity": 0.08
       },
       "translucency": {
         "enabled": true,
-        "value": 0.08
-      }
+        "value": 0.04
+      },
+      "specular": false
     },
     {
       "name": "Allowance",
@@ -30,12 +31,13 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.28
+        "opacity": 0.08
       },
       "translucency": {
         "enabled": true,
-        "value": 0.12
-      }
+        "value": 0.04
+      },
+      "specular": false
     },
     {
       "name": "Track",
@@ -47,12 +49,13 @@
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.18
+        "opacity": 0.08
       },
       "translucency": {
         "enabled": true,
-        "value": 0.18
-      }
+        "value": 0.04
+      },
+      "specular": false
     }
   ],
   "supported-platforms": {
