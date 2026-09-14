@@ -19,9 +19,11 @@ groups = document["groups"]
 assert [g["name"] for g in groups] == ["Needle", "Allowance", "Track"], "Front-to-back layer order changed"
 for group in groups:
     assert group["translucency"]["enabled"]
+    assert group["specular"] is False, "Overly strong edge highlights returned"
     for layer in group["layers"]:
         svg = ET.parse(source / "Assets" / layer["image-name"]).getroot()
         assert svg.attrib["viewBox"] == "0 0 1024 1024"
+        assert svg.attrib["width"] == svg.attrib["height"] == "1024"
         assert len(svg), "Empty artwork layer"
 resources = args.app / "Contents/Resources"
 assert (resources / "AppIcon.icns").read_bytes()[:4] == b"icns", "Invalid legacy ICNS"
@@ -31,7 +33,15 @@ counts = {}
 if car.exists():
     assert info.get("CFBundleIconName") == "AppIcon"
     result = subprocess.run(["/usr/bin/assetutil", "--info", str(car)], check=True, capture_output=True, text=True)
-    counts = dict(collections.Counter(item.get("AssetType", "metadata") for item in json.loads(result.stdout)))
+    items = json.loads(result.stdout)
+    counts = dict(collections.Counter(item.get("AssetType", "metadata") for item in items))
+    for item in items:
+        if item.get("AssetType") == "Icon Image":
+            assert item["PixelWidth"] == item["PixelHeight"], "Non-square compiled icon"
+        if item.get("AssetType") == "IconImageStack":
+            assert item["CanvasWidth"] == item["CanvasHeight"], "Non-square layered canvas"
+        if item.get("AssetType") == "IconGroup":
+            assert not item.get("LayerHasSpecular", False), "Compiled highlight annotation changed"
     assert counts.get("IconImageStack", 0) >= 1, "Missing layered icon stack"
     assert counts.get("IconGroup", 0) >= 3, "Missing material groups"
     assert counts.get("Vector", 0) >= 3, "Artwork flattened unexpectedly"

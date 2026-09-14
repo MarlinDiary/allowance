@@ -2,7 +2,7 @@
 
 ## 0.6.12
 
-- Keep the three material layers but disable shape-distorting specular highlights, reduce shadows to 8% and translucency to 4%. Preserve circular gauge geometry and native menu UI.
+- Keep the three material layers but disable optically uneven specular highlights, reduce shadows to 8% and translucency to 4%. Preserve circular gauge geometry and native menu UI.
 
 ## 0.6.11
 
