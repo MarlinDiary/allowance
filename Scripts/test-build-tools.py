@@ -2,14 +2,12 @@
 """Account-free regression checks for release guardrails."""
 import copy
 import importlib.util
-import math
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
-import re
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -20,11 +18,11 @@ SPEC.loader.exec_module(VERIFY_ICON)
 
 class IconPlaneTests(unittest.TestCase):
     def setUp(self):
-        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Ring"}
-        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Ring", "LayerCount": 1, "Layers": [self.vector]}
+        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Circle"}
+        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Circle", "LayerCount": 1, "Layers": [self.vector]}
         self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 2,
                       "Layers": [{"Name": "AppIcon_Assets/Gradient-1"},
-                                 {"AssetType": "IconGroup", "Name": "AppIcon/Ring", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
+                                 {"AssetType": "IconGroup", "Name": "AppIcon/Circle", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
         self.items = [self.vector, self.group, self.stack]
 
     def test_one_foreground_plane_above_backplate_passes(self):
@@ -54,30 +52,31 @@ class IconPlaneTests(unittest.TestCase):
 
 class RingArtworkTests(unittest.TestCase):
     def setUp(self):
-        self.svg = ET.parse(ROOT / "Assets/AppIcon.icon/Assets/Ring.svg").getroot()
-        self.path = self.svg[0]
+        self.svg = ET.parse(ROOT / "Assets/AppIcon.icon/Assets/Circle.svg").getroot()
+        self.circle = self.svg[0]
 
-    def test_monochrome_single_closed_silhouette(self):
+    def test_monochrome_complete_circle_without_gap(self):
         self.assertEqual(len(self.svg), 1)
-        self.assertEqual(self.path.tag, "{http://www.w3.org/2000/svg}path")
-        self.assertEqual(self.path.attrib["fill"], "#c3cbd6")
-        self.assertNotIn("stroke", self.path.attrib)
-        commands = re.findall(r"[MAQLZ]", self.path.attrib["d"])
-        self.assertEqual(commands, ["M", "A", "Q", "L", "Q", "A", "Q", "L", "Q", "Z"])
+        self.assertEqual(self.circle.tag, "{http://www.w3.org/2000/svg}circle")
+        self.assertEqual(self.circle.attrib["fill"], "none")
+        self.assertEqual(self.circle.attrib["stroke"], "#c3cbd6")
+        self.assertNotIn("d", self.circle.attrib)
 
-    def test_small_upper_right_gap_and_original_ring_width(self):
-        # Each Q starts at the theoretical circle/radial corner, before softening.
-        corners = re.findall(r"Q ([\d.]+) ([\d.]+)", self.path.attrib["d"])
-        points = [(float(x) - 512, float(y) - 512) for x, y in corners]
-        self.assertEqual(len(points), 4)
-        for (x, y), radius, angle in zip(points, [301, 231, 231, 301], [-53, -53, -37, -37]):
-            self.assertAlmostEqual(math.hypot(x, y), radius, delta=0.002)
-            self.assertAlmostEqual(math.degrees(math.atan2(y, x)), angle, delta=0.002)
-        self.assertAlmostEqual(math.hypot(*points[0]) - math.hypot(*points[1]), 70, delta=0.002)
+    def test_original_circle_geometry(self):
+        self.assertEqual({key: self.circle.attrib[key] for key in ["cx", "cy", "r", "stroke-width"]},
+                         {"cx": "512", "cy": "512", "r": "266", "stroke-width": "70"})
 
     def test_legacy_and_layered_foreground_match(self):
         legacy = ET.parse(ROOT / "Assets/AppIcon.svg").getroot()
-        self.assertEqual(legacy[-1].attrib, self.path.attrib)
+        self.assertEqual(legacy[-1].attrib, self.circle.attrib)
+
+    def test_dark_only_backplate_and_dark_legacy_colors(self):
+        import json
+        document = json.loads((ROOT / "Assets/AppIcon.icon/icon.json").read_text())
+        self.assertEqual(document["fill"], {"solid": "extended-srgb:0.10980,0.10980,0.11765,1.00000"})
+        legacy = ET.parse(ROOT / "Assets/AppIcon.svg").getroot()
+        stops = legacy.findall(".//{http://www.w3.org/2000/svg}stop")
+        self.assertEqual([stop.attrib["stop-color"] for stop in stops], ["#202024", "#111112"])
 
 
 class BuildToolsTests(unittest.TestCase):

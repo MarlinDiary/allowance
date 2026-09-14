@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.6.14
+## 0.6.15
+
+- Use only the dark charcoal app icon: one complete silver ring, without an opening, needle or colored arc. Default and Dark appearances share the same fixed dark backplate, matching the selected Icon Composer reference.
+- The older-OS static icon is also dark, with identical ring geometry. Native menu, menu-bar symbol and live data are unchanged.
+- Verify the complete circle, dark-only backplate and matching legacy artwork.
+
+## 0.6.14 (source preview; not published)
 
 - Replace the gauge with one silver open-ring silhouette. A small 16-degree opening at 1:30 has lightly softened corners; no needle, colored quota arc or tick marks. Ring size and thickness are preserved.
 - Keep genuine Icon Composer glass and a separate system backplate. Older macOS receives the same ring artwork as static ICNS.
