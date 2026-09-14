@@ -1,13 +1,31 @@
 name: Native checks
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+concurrency:
+  group: native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
-    runs-on: macos-15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            icon: legacy
+          - os: macos-26
+            icon: layered
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - run: swift --version
       - run: swift test
-      - run: ALLOWANCE_ARCHS=arm64 bash build.sh
+      - run: python3 Scripts/test-build-tools.py
+      - run: ALLOWANCE_ARCHS=arm64 ALLOWANCE_ICON_STYLE=${{ matrix.icon }} bash build.sh
       - run: dist/Allowance.app/Contents/MacOS/Allowance --self-check
+      - run: python3 Scripts/verify-icon.py dist/Allowance.app
+      - if: matrix.os == 'macos-26'
+        run: python3 Scripts/verify-icon.py dist/Allowance.app --require-layered

@@ -1,0 +1,24 @@
+name: Bug report
+description: Report a focused Allowance problem without account secrets.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Allowance and macOS versions
+      placeholder: Allowance 0.6.10, macOS 26.x, Apple Silicon
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and expected behavior
+      description: Include data source type if relevant, but no tokens, cookies, login files or account identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Observed behavior
+      description: Redact personal information from screenshots and diagnostics.
+    validations:
+      required: true

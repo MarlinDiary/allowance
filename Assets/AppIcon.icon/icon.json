@@ -1,0 +1,61 @@
+{
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.92549,0.94118,0.96078,1.00000"
+  },
+  "groups": [
+    {
+      "name": "Needle",
+      "layers": [
+        {
+          "image-name": "03 Needle.svg",
+          "name": "Needle"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.24
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.08
+      }
+    },
+    {
+      "name": "Allowance",
+      "layers": [
+        {
+          "image-name": "02 Allowance.svg",
+          "name": "Allowance"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.28
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.12
+      }
+    },
+    {
+      "name": "Track",
+      "layers": [
+        {
+          "image-name": "01 Track.svg",
+          "name": "Track"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.18
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.18
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}
