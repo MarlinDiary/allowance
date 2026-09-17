@@ -43,7 +43,7 @@ These words describe quota pace, not a model's fast mode or a prediction.
 
 Codex reads its existing CLI login and weekly usage endpoint. Claude reads a fresh, account-matched Fable cache first, then existing OAuth credentials or an existing Safari / Claude Desktop web session. The web path verifies the server account and organization before fetching usage. Shared/all-model quota is **never** substituted for Fable. Details: [CLAUDE_SOURCES.md](CLAUDE_SOURCES.md).
 
-Every refresh trigger shares a persisted provider gate: Codex at least two minutes, Claude at least five. Rate limits cause quiet backoff (5 / 10 / 20 / 30 minutes; a longer Retry-After wins), not repeated attempts through another data source. Recent cached readings stay quiet. Old readings say **last known** and **Delayed**; actionable sign-in and permission issues remain visible.
+Every refresh trigger shares a persisted provider gate: after a provider answers, Codex waits at least two minutes and Claude at least five; a connection failure with no answer retries after 30 seconds. Each provider refreshes as soon as its gate reopens. Rate limits cause quiet backoff (5 / 10 / 20 / 30 minutes; a longer Retry-After wins), not repeated attempts through another data source. Recent cached readings stay quiet. Old readings say **last known** and **Delayed**; actionable sign-in and permission issues remain visible.
 
 Changing the active CLI account changes only that provider. Late responses from an old account are discarded. Finder launches use default CLI configuration paths; custom profiles require the corresponding launch environment.
 

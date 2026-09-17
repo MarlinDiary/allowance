@@ -77,6 +77,7 @@ final class RefreshPolicy {
         store.saveUsage(StoredProviderUsage(ownerDigest: StoredProviderUsage.digest(credential), snapshot: snapshot), for: credential.provider)
     }
     static func interval(_ provider: QuotaProvider) -> TimeInterval { provider == .fable ? 300 : 120 }
+    static let connectivityRetry: TimeInterval = 30
     func state(_ provider: QuotaProvider) -> ProviderRefreshState? { store.load(provider) }
     func mayAttempt(_ provider: QuotaProvider, at now: Date) -> Bool {
         (state(provider)?.nextAttempt ?? .distantPast) <= now
@@ -98,8 +99,12 @@ final class RefreshPolicy {
             store.save(ProviderRefreshState(nextAttempt: now.addingTimeInterval(max(backoff, validServerDelay)),
                 reason: .rateLimit, consecutiveRateLimits: count), for: provider)
         } else {
-            store.save(ProviderRefreshState(nextAttempt: now.addingTimeInterval(
-                max(Self.interval(provider), error == .loginExpired || error == .accountChanged ? 300 : 120)),
+            // A connection failure is no answer from the provider, so it doesn't earn the provider's
+            // spacing. The retry itself waits up to 25 seconds for the network, and any real server
+            // answer, including a 429, still imposes its full wait.
+            let wait = error == .network ? Self.connectivityRetry
+                : max(Self.interval(provider), error == .loginExpired || error == .accountChanged ? 300 : 120)
+            store.save(ProviderRefreshState(nextAttempt: now.addingTimeInterval(wait),
                 reason: .failure, consecutiveRateLimits: state(provider)?.consecutiveRateLimits ?? 0), for: provider)
         }
     }

@@ -25,10 +25,15 @@ can use Web. A 429 stops further HTTP calls in that cycle. Web may be preferred 
 an eligible subsequent attempt **after** the shared cooldown. All menu-open,
 background, wake, credential-audit and diagnostic refreshes share that gate.
 
-Minimum network attempt spacing: Claude five minutes, Codex two minutes. Repeated
-429s back off for 5, 10, 20, then 30 minutes. A longer server Retry-After always
-wins. Cooldowns and retry count survive restart, token rotation and account switch.
-Only a successful network observation resets the consecutive rate-limit count.
+Minimum network attempt spacing after a provider answers: Claude five minutes, Codex
+two minutes. A connection failure brings no answer and retries after 30 seconds; it
+never shortens or resets a 429 backoff. Each provider's next attempt is scheduled for
+the moment its own gate reopens, not left to a shared polling tick. A request started
+before the network returns, such as right after wake, waits up to 25 seconds for
+connectivity instead of failing as `Offline`. Repeated 429s back off for 5, 10, 20,
+then 30 minutes. A longer server Retry-After always wins. Cooldowns and retry count
+survive restart, token rotation and account switch. Only a successful network
+observation resets the consecutive rate-limit count.
 
 The main menu does not display `Rate limited`. A recent cached weekly reading
 keeps its normal layout and pace word; after 15 minutes or a passed reset, the

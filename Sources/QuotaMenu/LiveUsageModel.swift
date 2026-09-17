@@ -17,6 +17,10 @@ final class LiveUsageModel: ObservableObject {
     private var generations: [QuotaProvider: Int] = [:]
     private var inFlight = Set<QuotaProvider>()
     private var observedTokens: [QuotaProvider: String] = [:]
+    /// Each provider's next refresh, set for the moment its request gate reopens.
+    private(set) var scheduledAttempts: [QuotaProvider: Date] = [:]
+    private var attemptTimers: [QuotaProvider: Timer] = [:]
+    private let wakesAutomatically: Bool
 
     init(reader: any CredentialReading = SystemCredentialReader(),
          client: any QuotaFetching = LiveUsageTransport(), startAutomatically: Bool = true,
@@ -25,6 +29,7 @@ final class LiveUsageModel: ObservableObject {
         self.client = client
         self.clock = clock
         self.policy = RefreshPolicy(store: stateStore ?? DefaultsRefreshStateStore())
+        self.wakesAutomatically = startAutomatically
         if startAutomatically { Task { await refresh() } }
     }
 
@@ -90,6 +95,33 @@ final class LiveUsageModel: ObservableObject {
     }
 
     func refreshProvider(_ provider: QuotaProvider, allowInteraction: Bool = false) async {
+        await attempt(provider, allowInteraction: allowInteraction)
+        scheduleNextAttempt(provider)
+    }
+
+    // A fixed two-minute tick rarely meets a gate as it reopens: it often lands a moment early
+    // and skips a whole Codex period, and reaches Claude's about a minute late. Each provider
+    // also wakes when its own gate reopens; the gate itself is unchanged. Nothing is armed
+    // while signed out or while a request is still running.
+    private func scheduleNextAttempt(_ provider: QuotaProvider) {
+        attemptTimers.removeValue(forKey: provider)?.invalidate()
+        guard selectedIdentities[provider] != nil, !inFlight.contains(provider),
+              let next = policy.state(provider)?.nextAttempt, next > clock() else {
+            scheduledAttempts[provider] = nil
+            return
+        }
+        scheduledAttempts[provider] = next
+        guard wakesAutomatically else { return }
+        // One second past the gate, so the attempt can never find it still closed.
+        let timer = Timer(fire: next.addingTimeInterval(1), interval: 0, repeats: false) { [weak self] _ in
+            Task { @MainActor in await self?.refreshProvider(provider) }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        attemptTimers[provider] = timer
+    }
+
+    private func attempt(_ provider: QuotaProvider, allowInteraction: Bool) async {
         let credential: LiveCredential
         do { credential = try await reader.read(provider, allowInteraction: allowInteraction) }
         catch let error as LiveReadError { invalidate(provider, error: error); return }
@@ -176,6 +208,7 @@ final class LiveUsageModel: ObservableObject {
              let state = policy.state(provider)
              return ["provider": provider.rawValue, "intervalSeconds": RefreshPolicy.interval(provider),
                      "nextAttemptAt": state?.nextAttempt.timeIntervalSince1970 as Any? ?? NSNull(),
+                     "scheduledAttemptAt": scheduledAttempts[provider]?.timeIntervalSince1970 as Any? ?? NSNull(),
                      "reason": state?.reason.rawValue as Any? ?? NSNull(),
                      "consecutiveRateLimits": state?.consecutiveRateLimits ?? 0] as [String: Any]
          },

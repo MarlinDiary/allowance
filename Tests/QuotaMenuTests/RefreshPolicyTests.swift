@@ -47,4 +47,36 @@ final class RefreshPolicyTests: XCTestCase {
             }
         }
     }
+    func testConnectionFailureRetriesSoonWhileServerAnswersKeepTheirWait() {
+        let policy = RefreshPolicy(store: MemoryRefreshStateStore())
+        let time = Date(timeIntervalSince1970: 1_800_000_000)
+        for provider in QuotaProvider.allCases {
+            policy.started(provider, at: time)
+            policy.failed(provider, error: .network, at: time)
+            XCTAssertEqual(policy.state(provider)!.nextAttempt.timeIntervalSince(time), 30)
+            XCTAssertFalse(policy.mayAttempt(provider, at: time.addingTimeInterval(29)))
+            for answered in [LiveReadError.http(503), .invalidResponse, .missingFable] {
+                policy.failed(provider, error: answered, at: time)
+                XCTAssertEqual(policy.state(provider)!.nextAttempt.timeIntervalSince(time), RefreshPolicy.interval(provider))
+            }
+        }
+        // A connection failure between two 429s neither shortens nor resets the backoff.
+        var now = time
+        policy.failed(.fable, error: .rateLimited(60), at: now)
+        now.addTimeInterval(300)
+        policy.started(.fable, at: now)
+        policy.failed(.fable, error: .network, at: now)
+        XCTAssertEqual(policy.state(.fable)!.consecutiveRateLimits, 1)
+        now.addTimeInterval(30)
+        policy.started(.fable, at: now)
+        policy.failed(.fable, error: .rateLimited(60), at: now)
+        XCTAssertEqual(policy.state(.fable)!.nextAttempt.timeIntervalSince(now), 600)
+    }
+    func testUsageRequestsWaitBoundedlyForConnectivityInsteadOfFailingOffline() {
+        let config = NativeUsageHTTPClient.configuration()
+        XCTAssertTrue(config.waitsForConnectivity)
+        XCTAssertEqual(config.timeoutIntervalForResource, 25)
+        XCTAssertNil(config.httpCookieStorage)
+        XCTAssertNil(config.urlCache)
+    }
 }

@@ -13,10 +13,16 @@ private final class NoUsageRedirects: NSObject, URLSessionTaskDelegate {
 actor NativeUsageHTTPClient: UsageHTTPClient {
     private let session: URLSession
     init() {
+        session = URLSession(configuration: Self.configuration(), delegate: NoUsageRedirects(), delegateQueue: nil)
+    }
+    static func configuration() -> URLSessionConfiguration {
         let config = URLSessionConfiguration.ephemeral
         config.urlCache = nil; config.httpCookieStorage = nil; config.httpShouldSetCookies = false
         config.timeoutIntervalForRequest = 20; config.timeoutIntervalForResource = 25
-        session = URLSession(configuration: config, delegate: NoUsageRedirects(), delegateQueue: nil)
+        // A wake-time refresh can start before Wi-Fi returns. Waiting here avoids a spurious
+        // Offline and a retry cycle; the resource timeout still bounds the wait.
+        config.waitsForConnectivity = true
+        return config
     }
     func response(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await session.data(for: request)

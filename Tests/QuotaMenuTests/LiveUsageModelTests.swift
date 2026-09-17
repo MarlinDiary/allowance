@@ -267,4 +267,88 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(second.issues["claude-fable"], "Rate limited")
     }
 
+    func testEachProviderIsScheduledForTheMomentItsOwnGateReopens() async {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        await model.refresh()
+        let start = time.now
+        XCTAssertEqual(model.scheduledAttempts[.codex], start.addingTimeInterval(120))
+        XCTAssertEqual(model.scheduledAttempts[.fable], start.addingTimeInterval(300))
+        // A shared tick a moment early fetches nothing and keeps each provider's own wake-up.
+        time.advance(119.9)
+        await model.refresh()
+        var codex = await client.count(.codex)
+        XCTAssertEqual(codex, 1)
+        XCTAssertEqual(model.scheduledAttempts[.codex], start.addingTimeInterval(120))
+        XCTAssertEqual(model.scheduledAttempts[.fable], start.addingTimeInterval(300))
+        // The wake-up itself fetches, so no whole period is skipped, and it re-arms from there.
+        time.now = start.addingTimeInterval(121)
+        await model.refreshProvider(.codex)
+        codex = await client.count(.codex)
+        XCTAssertEqual(codex, 2)
+        XCTAssertEqual(model.scheduledAttempts[.codex], time.now.addingTimeInterval(120))
+        let claude = await client.count(.fable)
+        XCTAssertEqual(claude, 1)
+    }
+
+    func testScheduledAttemptsFollowBackoffAndStopWhenSignedOut() async {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        await client.fail(.fable, error: .rateLimited(900))
+        await model.refresh()
+        XCTAssertEqual(model.scheduledAttempts[.fable], time.now.addingTimeInterval(900))
+        XCTAssertNotNil(model.scheduledAttempts[.codex])
+        await reader.fail(.codex, error: .notSignedIn)
+        time.advance(121)
+        await model.refreshProvider(.codex)
+        XCTAssertNil(model.scheduledAttempts[.codex], "A signed-out provider must not keep waking itself")
+    }
+
+    func testConnectionFailuresRetryInSecondsAndKeepTheLastKnownReading() async {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        await model.refresh()
+        time.advance(300)
+        await client.fail(.codex, error: .network)
+        await client.fail(.fable, error: .network)
+        for _ in 0..<2 {
+            await model.refresh()
+            XCTAssertEqual(model.scheduledAttempts[.codex], time.now.addingTimeInterval(30))
+            XCTAssertEqual(model.scheduledAttempts[.fable], time.now.addingTimeInterval(30))
+            XCTAssertEqual(model.issues["claude-fable"], "Offline")
+            XCTAssertEqual(model.snapshots.map(\.remainingText), ["79%", "42%"])
+            time.advance(30)
+        }
+        await client.fail(.codex, error: nil)
+        await client.fail(.fable, error: nil)
+        await model.refresh()
+        let codex = await client.count(.codex), claude = await client.count(.fable)
+        XCTAssertEqual(codex, 4); XCTAssertEqual(claude, 4)
+        XCTAssertNil(model.issues["claude-fable"])
+        XCTAssertEqual(model.scheduledAttempts[.fable], time.now.addingTimeInterval(300))
+    }
+
+    func testAutomaticModelFetchesWhenTheGateReopensWithoutAnotherTrigger() async throws {
+        let reader = FixtureReader(), client = FixtureClient(), store = MemoryRefreshStateStore()
+        store.save(ProviderRefreshState(nextAttempt: Date().addingTimeInterval(0.3), reason: .polling,
+                                        consecutiveRateLimits: 0), for: .codex)
+        let model = LiveUsageModel(reader: reader, client: client, stateStore: store)
+        let deadline = Date().addingTimeInterval(10)
+        while model.scheduledAttempts[.codex] == nil, Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        var calls = await client.count(.codex)
+        XCTAssertEqual(calls, 0, "The launch refresh must find the gate still closed")
+        while calls == 0, Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            calls = await client.count(.codex)
+        }
+        XCTAssertEqual(calls, 1)
+        let next = try XCTUnwrap(model.scheduledAttempts[.codex])
+        XCTAssertEqual(next.timeIntervalSinceNow, 120, accuracy: 5)
+    }
+
 }
