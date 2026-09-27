@@ -1,9 +1,9 @@
 import CryptoKit
 import Foundation
-import LocalAuthentication
-import Security
 
 enum QuotaProvider: String, CaseIterable, Sendable {
+    // `fable` is Claude Code's all-model weekly limit. The case and its stored identifier
+    // predate that switch and stay so persisted refresh gates survive upgrades.
     case codex = "codex", fable = "claude-fable"
     var shortName: String { self == .codex ? "Codex" : "Claude" }
     var index: Int { self == .codex ? 0 : 1 }
@@ -26,7 +26,7 @@ struct LiveCredential: Equatable, Sendable {
 
 enum LiveReadError: Error, Equatable {
     case notSignedIn, loginExpired, keychainPermission, profileScopeMissing
-    case rateLimited(TimeInterval), http(Int), invalidResponse, accountChanged, missingFable, network
+    case rateLimited(TimeInterval), http(Int), invalidResponse, accountChanged, missingWeekly, network
 
     var message: String {
         switch self {
@@ -38,7 +38,7 @@ enum LiveReadError: Error, Equatable {
         case .http: return "Usage request failed"
         case .invalidResponse: return "Usage unavailable"
         case .accountChanged: return "Account changed"
-        case .missingFable: return "Fable limit unavailable"
+        case .missingWeekly: return "Weekly limit unavailable"
         case .network: return "Offline"
         }
     }
@@ -50,21 +50,19 @@ protocol CredentialReading: Sendable {
 
 struct SystemCredentialReader: CredentialReading {
     func read(_ provider: QuotaProvider, allowInteraction: Bool = false) async throws -> LiveCredential {
-        try await Task.detached(priority: .utility) {
-            do { return try Self.load(provider, allowInteraction: allowInteraction) }
-            catch let error as LiveReadError {
-                if provider == .fable, let context = ClaudeAccountContext.load() {
-                    // Identity metadata is not a bearer token. It lets a same-account local
-                    // cache or existing Web session work when the CLI token is unavailable.
-                    return LiveCredential(provider: provider, accessToken: "", accountHint: context.account,
-                        organizationHint: context.organization, credentialIssue: error)
-                }
-                throw error
+        do { return try await Self.load(provider, allowInteraction: allowInteraction) }
+        catch let error as LiveReadError {
+            if provider == .fable, let context = ClaudeAccountContext.load() {
+                // Identity metadata is not a bearer token. It lets a same-account local
+                // cache or existing Web session work when the CLI token is unavailable.
+                return LiveCredential(provider: provider, accessToken: "", accountHint: context.account,
+                    organizationHint: context.organization, credentialIssue: error)
             }
-        }.value
+            throw error
+        }
     }
 
-    private static func load(_ provider: QuotaProvider, allowInteraction: Bool) throws -> LiveCredential {
+    private static func load(_ provider: QuotaProvider, allowInteraction: Bool) async throws -> LiveCredential {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let environment = ProcessInfo.processInfo.environment
         if provider == .codex {
@@ -88,23 +86,12 @@ struct SystemCredentialReader: CredentialReading {
         } else {
             // A custom profile must not silently adopt the default global profile's credentials.
             guard customDirectory == nil else { throw LiveReadError.notSignedIn }
-            let context = LAContext()
-            context.interactionNotAllowed = !allowInteraction
-            var result: CFTypeRef?
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: "Claude Code-credentials",
-                kSecAttrAccount as String: NSUserName(),
-                kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne,
-                kSecUseAuthenticationContext as String: context
-            ]
-            let status = SecItemCopyMatching(query as CFDictionary, &result)
-            guard status == errSecSuccess, let secret = result as? Data else {
-                if status == errSecItemNotFound { throw LiveReadError.notSignedIn }
-                throw LiveReadError.keychainPermission
+            switch await KeychainAccess.password(service: "Claude Code-credentials", account: NSUserName(),
+                                                 allowInteraction: allowInteraction) {
+            case .success(let secret): data = secret
+            case .failure(.notFound): throw LiveReadError.notSignedIn
+            case .failure(.denied): throw LiveReadError.keychainPermission
             }
-            data = secret
         }
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let oauth = object["claudeAiOauth"] as? [String: Any],

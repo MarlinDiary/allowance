@@ -2,12 +2,12 @@
 
 # Allowance
 
-A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code Fable weekly** allowance. Follows the account already signed in to each CLI.
+A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code weekly** allowance. Follows the account already signed in to each CLI.
 
 [![Native checks](https://github.com/MarlinDiary/allowance/actions/workflows/ci.yml/badge.svg)](https://github.com/MarlinDiary/allowance/actions/workflows/ci.yml)
 [Download](https://github.com/MarlinDiary/allowance/releases) · [Data sources](CLAUDE_SOURCES.md) · [Changelog](CHANGELOG.md)
 
-- Remaining percentage, reset countdown and **Slow · Steady · Fast** usage pace.
+- Used percentage, reset countdown and **Slow · Steady · Fast** usage pace.
 - A thin, read-only bar: **filled = used; empty = remaining**.
 - Standard macOS notifications for Tibo's explicit reset announcements and confirmed resets.
 - Native `NSMenu`, compact SwiftUI information rows, English UI. No dashboard, main window, separator lines, Refresh button or hover explanations.
@@ -25,11 +25,11 @@ Requires **macOS 13 or later**. Download the universal Apple Silicon / Intel ZIP
 
 Allow notifications when macOS asks. Later, change access in System Settings → Notifications → Allowance. Focus and system settings control presentation. The app does not modify launch-at-login settings.
 
-The normal menu is information-only. **Command-Q while the menu is open** quits through a hidden native menu command, without a visible Quit row. This is not a global hotkey and never captures Command-Q from another foreground app. Activity Monitor also works. A Keychain access command appears only when needed.
+The normal menu is information-only. **Command-Q while the menu is open** quits through a hidden native menu command, without a visible Quit row. This is not a global hotkey and never captures Command-Q from another foreground app. Activity Monitor also works. Background Keychain reads never show a system prompt; when Claude Code's saved login is not readable, Allowance quietly uses another source, and an **Allow Keychain Access…** command appears only when nothing else works.
 
 ## What the numbers mean
 
-The percentage is **remaining** quota. Pace compares **used quota** with elapsed time in the seven-day window, with a five-percentage-point tolerance:
+The percentage is **used** quota, the same share that fills the bar. Pace compares it with elapsed time in the seven-day window, with a five-percentage-point tolerance:
 
 | Pace | Meaning |
 | --- | --- |
@@ -41,11 +41,11 @@ These words describe quota pace, not a model's fast mode or a prediction.
 
 ## Quiet, account-aware data
 
-Codex reads its existing CLI login and weekly usage endpoint. Claude reads a fresh, account-matched Fable cache first, then existing OAuth credentials or an existing Safari / Claude Desktop web session. The web path verifies the server account and organization before fetching usage. Shared/all-model quota is **never** substituted for Fable. Details: [CLAUDE_SOURCES.md](CLAUDE_SOURCES.md).
+Codex reads its existing CLI login and weekly usage endpoint. Claude reads a fresh, account-matched weekly cache first, then existing OAuth credentials or an existing Safari / Claude Desktop web session. The web path verifies the server account and organization before fetching usage. Claude shows its overall weekly limit across models; a model-specific limit such as Fable is **never** substituted for it. Details: [CLAUDE_SOURCES.md](CLAUDE_SOURCES.md).
 
 Every refresh trigger shares a persisted provider gate: after a provider answers, Codex waits at least two minutes and Claude at least five; a connection failure with no answer retries after 30 seconds. Each provider refreshes as soon as its gate reopens. Rate limits cause quiet backoff (5 / 10 / 20 / 30 minutes; a longer Retry-After wins), not repeated attempts through another data source. Recent cached readings stay quiet. Old readings say **last known** and **Delayed**; actionable sign-in and permission issues remain visible.
 
-Changing the active CLI account changes only that provider. Late responses from an old account are discarded. Finder launches use default CLI configuration paths; custom profiles require the corresponding launch environment.
+Changing the active CLI account changes only that provider: the previous account's reading disappears as soon as the CLI writes its login file, and the new account is fetched right away. Late responses from an old account are discarded. Finder launches use default CLI configuration paths; custom profiles require the corresponding launch environment.
 
 ### Reset notifications
 

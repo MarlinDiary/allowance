@@ -10,6 +10,11 @@ final class UsageSnapshotTests: XCTestCase {
                              resetsAt: now.addingTimeInterval(duration * (1 - elapsed)), observedAt: now)
     }
     func testRemainingUsesComplement() { XCTAssertEqual(snapshot(used: 32).remainingText, "68%") }
+    func testUsedTextIsTheBarsFill() {
+        XCTAssertEqual(snapshot(used: 32).usedText, "32%")
+        XCTAssertEqual(snapshot(used: 120).usedText, "100%")
+        XCTAssertEqual(snapshot(used: nil).usedText, "—")
+    }
     func testUnknownIsNotZero() { XCTAssertEqual(snapshot(used: nil).remainingText, "—") }
     func testNonFiniteIsUnknown() { XCTAssertNil(snapshot(used: .nan).remainingFraction); XCTAssertNil(snapshot(used: .infinity).remainingFraction) }
     func testBoundsAreClamped() { XCTAssertEqual(snapshot(used: -5).remainingText, "100%"); XCTAssertEqual(snapshot(used: 120).remainingText, "0%") }
@@ -46,5 +51,5 @@ final class UsageSnapshotTests: XCTestCase {
             if mode == .disconnected { XCTAssertEqual(rows.map(\.remainingText), ["—", "—"]) }
         }
     }
-    func testFableDenominatorIsItsOwnLimit() { XCTAssertEqual(snapshot(used: 64).remainingText, "36%") }
+    func testClaudeWeeklyDenominatorIsItsOwnLimit() { XCTAssertEqual(snapshot(used: 64).remainingText, "36%") }
 }

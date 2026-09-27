@@ -11,7 +11,7 @@ private let credential = LiveCredential(provider: .fable, accessToken: "syntheti
 private func usage(_ used: Int = 26, end: Date = Date().addingTimeInterval(100000)) -> String {
     let date = ISO8601DateFormatter().string(from: end)
     return """
-    {"seven_day":{"utilization":99},"limits":[{"kind":"weekly_scoped","percent":\(used),"resets_at":"\(date)","scope":{"model":{"display_name":"Fable"}}}]}
+    {"seven_day":{"utilization":\(used),"resets_at":"\(date)"},"limits":[{"kind":"weekly_all","percent":\(used),"resets_at":"\(date)"},{"kind":"weekly_scoped","percent":99,"resets_at":"\(date)","scope":{"model":{"display_name":"Fable"}}}]}
     """
 }
 private struct Step: Sendable {
@@ -60,7 +60,7 @@ final class ClaudeDataPathTests: XCTestCase {
          Step(host: "claude.ai", path: "/api/organizations", status: 200, body: "[{\"uuid\":\"\(organization)\"}]"),
          Step(host: "claude.ai", path: "/api/organizations/\(organization)/usage", status: 200, body: usage())]
     }
-    func testOAuthServerFailureFallsBackToSameAccountWebAndFableOnly() async throws {
+    func testOAuthServerFailureFallsBackToSameAccountWebAndWeeklyOnly() async throws {
         let http = ScriptedHTTP([
             Step(host: "api.anthropic.com", path: "/api/oauth/profile", status: 200, body: "{\"account\":{\"uuid\":\"\(account)\"}}"),
             Step(host: "api.anthropic.com", path: "/api/oauth/usage", status: 503, body: "{}")] + webSteps())
@@ -117,7 +117,7 @@ final class ClaudeDataPathTests: XCTestCase {
         catch { XCTAssertEqual(error as? LiveReadError, .rateLimited(3600)) }
         let count = await http.count(); XCTAssertEqual(count, 1)
     }
-    func testCacheKeepsOriginalTimestampRejectsOldOtherAccountAndSharedOnly() throws {
+    func testCacheKeepsOriginalTimestampRejectsOldOtherAccountAndModelScopedOnly() throws {
         let now = Date(), captured = now.addingTimeInterval(-60)
         func cache(account owner: String, timestamp: Date, payload: String) -> Data {
             Data("{\"cachedUsageUtilization\":{\"accountUuid\":\"\(owner)\",\"fetchedAtMs\":\(timestamp.timeIntervalSince1970 * 1000),\"utilization\":\(payload)}}".utf8)
@@ -129,7 +129,7 @@ final class ClaudeDataPathTests: XCTestCase {
         XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: "other", timestamp: captured, payload: usage()), expectedAccount: account, at: now))
         XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: account, timestamp: now.addingTimeInterval(-901), payload: usage()), expectedAccount: account, at: now))
         XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: account, timestamp: now.addingTimeInterval(1), payload: usage()), expectedAccount: account, at: now))
-        XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: account, timestamp: captured, payload: "{\"seven_day\":{\"utilization\":99}}"), expectedAccount: account, at: now))
+        XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: account, timestamp: captured, payload: "{\"limits\":[{\"kind\":\"weekly_scoped\",\"percent\":9,\"resets_at\":\"2099-01-01T00:00:00Z\",\"scope\":{\"model\":{\"display_name\":\"Fable\"}}}]}"), expectedAccount: account, at: now))
         XCTAssertNil(ClaudeLocalUsageCache.decode(cache(account: account, timestamp: captured, payload: usage(end: now.addingTimeInterval(-1))), expectedAccount: account, at: now))
     }
     func testCookieHeaderRejectsInjection() {

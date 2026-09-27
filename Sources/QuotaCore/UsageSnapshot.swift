@@ -39,6 +39,12 @@ public struct UsageSnapshot: Equatable, Codable {
         return "\(Int((remainingFraction * 100).rounded()))%"
     }
 
+    /// The used share, the same amount that fills the menu's bar.
+    public var usedText: String {
+        guard let remainingFraction else { return "—" }
+        return "\(Int(((1 - remainingFraction) * 100).rounded()))%"
+    }
+
     // Percentage-point difference from uniform consumption, not an exhaustion forecast.
     public func paceDelta(at now: Date) -> Double? {
         guard let remainingFraction, let windowStart, let resetsAt,
@@ -120,7 +126,7 @@ public enum DemoScenario: String, CaseIterable {
             let connected = self != .disconnected
             let end = now.addingTimeInterval(remaining[index])
             return UsageSnapshot(
-                provider: provider, title: index == 0 ? "Codex" : "Fable",
+                provider: provider, title: index == 0 ? "Codex" : "Claude",
                 accountID: connected ? "demo-\(provider)-\(alternateAccount ? "B" : "A")" : nil,
                 accountLabel: connected ? "\(alternateAccount ? "Alternate" : "Personal") demo account" : "No account connected",
                 usedPercent: used[index], windowStart: connected ? end.addingTimeInterval(-week) : nil,

@@ -19,21 +19,18 @@ public enum LivePayloadDecoder {
         let reset_at: Double?
     }
     private struct ClaudeEnvelope: Decodable {
-        let limits: [ScopedLimit]?
-        let seven_day_fable: ClaudeWindow?
+        let limits: [WeeklyLimit]?
+        let seven_day: ClaudeWindow?
     }
     private struct ClaudeWindow: Decodable {
         let utilization: Double?
         let resets_at: String?
     }
-    private struct ScopedLimit: Decodable {
+    private struct WeeklyLimit: Decodable {
         let kind: String?
         let percent: Double?
         let resets_at: String?
-        let scope: Scope?
     }
-    private struct Scope: Decodable { let model: Model? }
-    private struct Model: Decodable { let display_name: String?; let id: String? }
 
     public static func codex(_ data: Data, expectedAccount: String, now: Date) throws -> UsageSnapshot {
         let envelope = try JSONDecoder().decode(CodexEnvelope.self, from: data)
@@ -47,23 +44,20 @@ public enum LivePayloadDecoder {
                              windowStart: end?.addingTimeInterval(-604800), resetsAt: end, observedAt: now)
     }
 
-    public static func fable(_ data: Data, verifiedAccount: String, now: Date) throws -> UsageSnapshot {
+    // Claude's overall weekly limit across models. Model-scoped weekly limits such as Fable
+    // never stand in for it, even when it is missing.
+    public static func claude(_ data: Data, verifiedAccount: String, now: Date) throws -> UsageSnapshot {
         let envelope = try JSONDecoder().decode(ClaudeEnvelope.self, from: data)
-        let matching = envelope.limits?.first { limit in
-            guard limit.kind == "weekly_scoped" else { return false }
-            let name = limit.scope?.model?.display_name?.lowercased() ?? ""
-            let id = limit.scope?.model?.id?.lowercased() ?? ""
-            return name == "fable" || name.hasPrefix("fable ") || id.hasPrefix("claude-fable")
-        }
-        let used = matching?.percent ?? envelope.seven_day_fable?.utilization
-        let reset = matching?.resets_at ?? envelope.seven_day_fable?.resets_at
+        let overall = envelope.limits?.first { $0.kind == "weekly_all" }
+        let used = overall?.percent ?? envelope.seven_day?.utilization
+        let reset = overall?.resets_at ?? envelope.seven_day?.resets_at
         guard let used, used.isFinite else { throw UsagePayloadError.missingWeeklyWindow }
         let end: Date?
         if let reset {
             guard let date = isoDate(reset) else { throw UsagePayloadError.invalidResponse }
             end = date
         } else { end = nil }
-        return UsageSnapshot(provider: "claude-fable", title: "Fable", accountID: verifiedAccount,
+        return UsageSnapshot(provider: "claude-fable", title: "Claude", accountID: verifiedAccount,
                              accountLabel: "Current Claude Code account", usedPercent: used,
                              windowStart: end?.addingTimeInterval(-604800), resetsAt: end, observedAt: now)
     }

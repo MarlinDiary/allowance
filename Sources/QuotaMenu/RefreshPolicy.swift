@@ -40,12 +40,17 @@ final class DefaultsRefreshStateStore: RefreshStateStoring {
     private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
     private func key(_ provider: QuotaProvider) -> String { "quota.refresh.v1." + provider.rawValue }
+    // Claude's stored reading moved to v2 when it switched from the Fable limit to the
+    // all-model weekly limit, so an old Fable percentage is never restored as weekly.
+    static func usageKey(_ provider: QuotaProvider) -> String {
+        (provider == .fable ? "quota.usage.v2." : "quota.usage.v1.") + provider.rawValue
+    }
     func loadUsage(_ provider: QuotaProvider) -> StoredProviderUsage? {
-        guard let data = defaults.data(forKey: "quota.usage.v1." + provider.rawValue), data.count <= 16000 else { return nil }
+        guard let data = defaults.data(forKey: Self.usageKey(provider)), data.count <= 16000 else { return nil }
         return try? JSONDecoder().decode(StoredProviderUsage.self, from: data)
     }
     func saveUsage(_ usage: StoredProviderUsage, for provider: QuotaProvider) {
-        if let data = try? JSONEncoder().encode(usage) { defaults.set(data, forKey: "quota.usage.v1." + provider.rawValue) }
+        if let data = try? JSONEncoder().encode(usage) { defaults.set(data, forKey: Self.usageKey(provider)) }
     }
     func load(_ provider: QuotaProvider) -> ProviderRefreshState? {
         guard let data = defaults.data(forKey: key(provider)),

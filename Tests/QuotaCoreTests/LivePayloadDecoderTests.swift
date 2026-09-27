@@ -30,31 +30,38 @@ final class LivePayloadDecoderTests: XCTestCase {
         XCTAssertThrowsError(try LivePayloadDecoder.codex(raw, expectedAccount: "A", now: now))
     }
 
-    func testFableUsesItsScopedPercentageNotAllModels() throws {
+    func testClaudeUsesTheAllModelWeekNotAModelScopedLimit() throws {
         let raw = data(#"{"seven_day":{"utilization":17,"resets_at":"2027-01-20T15:00:00Z"},"limits":[{"kind":"weekly_all","percent":17},{"kind":"weekly_scoped","percent":58,"resets_at":"2027-01-20T15:00:00.123456+00:00","scope":{"model":{"display_name":"Fable","id":null}},"is_active":false}]}"#)
-        let value = try LivePayloadDecoder.fable(raw, verifiedAccount: "C", now: now)
-        XCTAssertEqual(value.remainingText, "42%")
+        let value = try LivePayloadDecoder.claude(raw, verifiedAccount: "C", now: now)
+        XCTAssertEqual(value.remainingText, "83%")
         XCTAssertEqual(value.accountID, "C")
         XCTAssertEqual(value.resetsAt!.timeIntervalSince(value.windowStart!), 604800)
     }
 
-    func testFlatFableFieldIsSupported() throws {
-        let raw = data(#"{"seven_day_fable":{"utilization":30,"resets_at":"2027-01-20T15:00:00Z"}}"#)
-        XCTAssertEqual(try LivePayloadDecoder.fable(raw, verifiedAccount: "C", now: now).remainingText, "70%")
+    func testAllModelLimitEntryWinsOverTheSevenDaySummary() throws {
+        let raw = data(#"{"seven_day":{"utilization":20,"resets_at":"2027-01-20T15:00:00Z"},"limits":[{"kind":"weekly_all","percent":25,"resets_at":"2027-01-21T15:00:00Z"}]}"#)
+        let value = try LivePayloadDecoder.claude(raw, verifiedAccount: "C", now: now)
+        XCTAssertEqual(value.usedPercent, 25)
+        XCTAssertEqual(value.resetsAt, ISO8601DateFormatter().date(from: "2027-01-21T15:00:00Z"))
     }
 
-    func testMissingFableDoesNotBecomeSharedWeeklyOrZero() {
-        let raw = data(#"{"seven_day":{"utilization":17},"limits":[{"kind":"weekly_scoped","percent":3,"scope":{"model":{"display_name":"Sonnet"}}}]}"#)
-        XCTAssertThrowsError(try LivePayloadDecoder.fable(raw, verifiedAccount: "C", now: now)) {
+    func testSevenDaySummaryAloneIsSupported() throws {
+        let raw = data(#"{"seven_day":{"utilization":30,"resets_at":"2027-01-20T15:00:00Z"}}"#)
+        XCTAssertEqual(try LivePayloadDecoder.claude(raw, verifiedAccount: "C", now: now).remainingText, "70%")
+    }
+
+    func testMissingWeekDoesNotBecomeAModelLimitOrZero() {
+        let raw = data(#"{"seven_day_fable":{"utilization":10},"limits":[{"kind":"weekly_scoped","percent":3,"scope":{"model":{"display_name":"Fable"}}}]}"#)
+        XCTAssertThrowsError(try LivePayloadDecoder.claude(raw, verifiedAccount: "C", now: now)) {
             XCTAssertEqual($0 as? UsagePayloadError, .missingWeeklyWindow)
         }
     }
 
-    func testNullFableAndBadTimestampStayUnknown() {
+    func testNullWeekAndBadTimestampStayUnknown() {
         for raw in [
-            #"{"seven_day_fable":null}"#,
-            #"{"seven_day_fable":{"utilization":10,"resets_at":"bad date"}}"#
-        ] { XCTAssertThrowsError(try LivePayloadDecoder.fable(data(raw), verifiedAccount: "C", now: now)) }
+            #"{"seven_day":null}"#,
+            #"{"seven_day":{"utilization":10,"resets_at":"bad date"}}"#
+        ] { XCTAssertThrowsError(try LivePayloadDecoder.claude(data(raw), verifiedAccount: "C", now: now)) }
     }
 
     func testInvalidPercentageTypeIsRejected() {

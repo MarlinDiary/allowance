@@ -28,7 +28,7 @@ enum EntryPoint {
                 let record: [String: Any] = ["mode": "source-readiness", "networkRequests": 0,
                     "activeAccountHintAvailable": credential?.accountHint != nil,
                     "oauthCredentialReadable": credential.map { !$0.accessToken.isEmpty } ?? false,
-                    "localCacheHasFreshFable": local != nil,
+                    "localCacheHasFreshWeekly": local != nil,
                     "webSessionSources": sessions.map(\.source)]
                 let data = try! JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
                 print(String(decoding: data, as: UTF8.self)); exit(0)
@@ -55,13 +55,13 @@ enum EntryPoint {
                 "customViews": true, "customDrawing": true, "customPanel": false,
                 "liveCredentialsAccessed": false, "networkRequests": 0,
                 "userAgent": RequestIdentity.userAgent,
-                "remaining": snapshots.map(\.remainingText),
+                "used": snapshots.map(\.usedText),
                 "progressStyle": "SwiftUI.Capsule.readOnly.4pt", "progressMeaning": "filled = used; empty = remaining",
                 "progressValues": snapshots.compactMap(\.remainingFraction).map { 1 - $0 },
                 "informationWidth": MenuMetrics.width, "informationHeight": MenuMetrics.informationHeight,
                 "visibleAccountSubtitle": false,
                 "quotaLabelPlacement": "inline",
-                "remainingLabels": snapshots.map { MenuReadout(snapshot: $0, now: now).remainingLabel },
+                "usedLabels": snapshots.map { MenuReadout(snapshot: $0, now: now).usedLabel },
                 "statusImageScaling": MenuMetrics.statusImageScaling == .scaleNone ? "none" : "scaled",
                 "statusIconSize": MenuMetrics.statusIcon().size.width,
                 "providerArtwork": ProviderBrand.allCases.map { $0.resourceURL.lastPathComponent },

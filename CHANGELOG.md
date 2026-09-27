@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.17
+
+- Claude Code shows its overall weekly limit across models instead of the Fable limit. Model-specific limits such as Fable are never substituted for it, and a saved Fable reading is never restored as weekly.
+- Percentages show how much of each weekly limit is used, matching the bar's fill.
+- Background Keychain reads never show a system prompt, and a pending prompt can no longer stop refreshes. Previously an unanswered prompt could leave both providers without updates for hours.
+- Account switches are noticed as soon as Codex or Claude Code writes its login file, including rewrites in place, and the previous account's reading disappears at once.
+- Each provider refreshes when its request spacing ends instead of on a fixed two-minute tick. A connection failure with no provider response retries after 30 seconds, and a refresh right after wake waits briefly for the network.
+- Usage and reset requests identify the bundled app version.
+
+## 0.6.16 (release candidate; not published)
+
+- Draft only; its request-identity change ships in 0.6.17.
+
 ## 0.6.15
 
 - Use only the dark charcoal app icon: one complete silver ring, without an opening, needle or colored arc. Default and Dark appearances share the same fixed dark backplate, matching the selected Icon Composer reference.

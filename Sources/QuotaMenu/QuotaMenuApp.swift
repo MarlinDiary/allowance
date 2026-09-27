@@ -161,8 +161,8 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MenuReadout(snapshot: $0, now: Date(), issue: model.issues[$0.provider]).pace
         }
         record["quotaLabelPlacement"] = "inline"
-        record["remainingLabels"] = model.snapshots.map {
-            MenuReadout(snapshot: $0, now: Date(), issue: model.issues[$0.provider]).remainingLabel
+        record["usedLabels"] = model.snapshots.map {
+            MenuReadout(snapshot: $0, now: Date(), issue: model.issues[$0.provider]).usedLabel
         }
         record["visibleMenuTitles"] = menu.items.filter { !$0.isHidden }.map { $0.isSeparatorItem ? "separator" : $0.title }
         record["providerArtworkTemplate"] = true
@@ -209,8 +209,8 @@ struct UsageInformationView: View {
                 Spacer(minLength: 8)
                 if readout.remainingFraction != nil {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(readout.remaining).font(.system(size: 13, weight: .medium)).monospacedDigit()
-                        Text(readout.remainingLabel).font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text(readout.used).font(.system(size: 13, weight: .medium)).monospacedDigit()
+                        Text(readout.usedLabel).font(.system(size: 11)).foregroundStyle(.secondary)
                     }.fixedSize()
                 }
             }

@@ -1,16 +1,21 @@
-# Claude Fable usage sources (Allowance 0.6.9)
+# Claude weekly usage sources
 
 Independent implementation using Apple-provided frameworks only. CodexBar was
 consulted for endpoint/data-shape behavior; its implementation is not included.
 
 1. **Passive Claude Code cache** — reads `cachedUsageUtilization` from the current
    configuration's `.claude.json`. Requires its account UUID to match the active
-   account hint, a real Fable model-scoped weekly window, a capture time no more
+   account hint, a real all-model weekly window, a capture time no more
    than 15 minutes old, and a future reset date. A reading under five minutes old
    avoids a network refresh. It can update the menu during a network cooldown.
 2. **OAuth** — existing CLI credentials, profile identity verification, then the
    usage endpoint. Known-expired tokens are never sent. Allowance doesn't refresh or
-   rewrite Claude Code credentials or start a CLI process.
+   rewrite Claude Code credentials or start a CLI process. Keychain reads made in the
+   background never prompt, even though the login keychain ignores
+   `LAContext.interactionNotAllowed`: when Claude Code rewrites its item and access
+   lapses, the read fails quietly and another source is tried. Only **Allow Keychain
+   Access…** may prompt. Reads run one at a time outside Swift's concurrency pool, so a
+   pending prompt cannot stall other refreshes.
 3. **Web** — existing Safari or Claude Desktop session cookies, read-only and
    noninteractive. Checks the server account UUID and membership in the selected
    CLI organization before requesting that organization's usage. No automatic
@@ -19,6 +24,11 @@ consulted for endpoint/data-shape behavior; its implementation is not included.
 4. **Last successful Allowance observation** — one account-bound snapshot per provider
    in app preferences, restored only for a matching identity and unexpired window.
    Capture times are retained across failure and restart, not replaced with now.
+
+The weekly window is Claude's overall limit across models: the usage payload's
+`weekly_all` limit, else its `seven_day` summary. Model-scoped weekly limits such as
+Fable are ignored and never stand in for it; without the overall limit the menu says
+`Weekly limit unavailable`.
 
 OAuth is preferred initially. Recoverable credential, server or network failures
 can use Web. A 429 stops further HTTP calls in that cycle. Web may be preferred on

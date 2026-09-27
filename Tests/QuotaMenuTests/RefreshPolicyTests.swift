@@ -1,4 +1,5 @@
 import Foundation
+import QuotaCore
 import XCTest
 @testable import QuotaMenu
 
@@ -55,7 +56,7 @@ final class RefreshPolicyTests: XCTestCase {
             policy.failed(provider, error: .network, at: time)
             XCTAssertEqual(policy.state(provider)!.nextAttempt.timeIntervalSince(time), 30)
             XCTAssertFalse(policy.mayAttempt(provider, at: time.addingTimeInterval(29)))
-            for answered in [LiveReadError.http(503), .invalidResponse, .missingFable] {
+            for answered in [LiveReadError.http(503), .invalidResponse, .missingWeekly] {
                 policy.failed(provider, error: answered, at: time)
                 XCTAssertEqual(policy.state(provider)!.nextAttempt.timeIntervalSince(time), RefreshPolicy.interval(provider))
             }
@@ -71,6 +72,25 @@ final class RefreshPolicyTests: XCTestCase {
         policy.started(.fable, at: now)
         policy.failed(.fable, error: .rateLimited(60), at: now)
         XCTAssertEqual(policy.state(.fable)!.nextAttempt.timeIntervalSince(now), 600)
+    }
+    func testOldFableReadingIsNeverRestoredAsTheWeeklyOne() throws {
+        let name = "quota-usage-fixture-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let now = Date()
+        let credential = LiveCredential(provider: .fable, accessToken: "synthetic", accountHint: "C")
+        func reading(_ used: Double, title: String) -> UsageSnapshot {
+            UsageSnapshot(provider: "claude-fable", title: title, accountID: "C", accountLabel: "Fixture",
+                          usedPercent: used, windowStart: nil, resetsAt: now.addingTimeInterval(86400), observedAt: now)
+        }
+        let stored = StoredProviderUsage(ownerDigest: StoredProviderUsage.digest(credential), snapshot: reading(14, title: "Fable"))
+        defaults.set(try JSONEncoder().encode(stored), forKey: "quota.usage.v1.claude-fable")
+        let policy = RefreshPolicy(store: DefaultsRefreshStateStore(defaults: defaults))
+        XCTAssertNil(policy.restore(.fable, credential: credential, at: now), "A stored Fable percentage is not the weekly one")
+        policy.capture(reading(31, title: "Claude"), credential: credential)
+        XCTAssertEqual(policy.restore(.fable, credential: credential, at: now)?.usedPercent, 31)
+        XCTAssertNotNil(defaults.data(forKey: "quota.usage.v2.claude-fable"))
+        XCTAssertEqual(DefaultsRefreshStateStore.usageKey(.codex), "quota.usage.v1.codex", "Codex readings survive the upgrade")
     }
     func testUsageRequestsWaitBoundedlyForConnectivityInsteadOfFailingOffline() {
         let config = NativeUsageHTTPClient.configuration()

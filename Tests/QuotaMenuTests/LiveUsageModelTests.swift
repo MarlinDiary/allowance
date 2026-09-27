@@ -19,6 +19,10 @@ private actor FixtureReader: CredentialReading {
         failures[provider] = nil
     }
     func fail(_ provider: QuotaProvider, error: LiveReadError) { failures[provider] = error }
+    func use(_ credential: LiveCredential) {
+        credentials[credential.provider] = credential
+        failures[credential.provider] = nil
+    }
 }
 
 private actor FixtureClient: QuotaFetching {
@@ -119,7 +123,7 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(model.snapshots[0].remainingText, "79%")
         XCTAssertEqual(model.issues["codex"], "Rate limited") // diagnostic only
         let readout = MenuReadout(snapshot: model.snapshots[0], now: time.now, issue: model.issues["codex"])
-        XCTAssertEqual(readout.remainingLabel, "left")
+        XCTAssertEqual(readout.usedLabel, "used")
         XCTAssertFalse(readout.summary.contains("Rate limited"))
     }
 
@@ -145,13 +149,13 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertNil(model.issues["codex"])
     }
 
-    func testMissingFableIsNotInventedFromAnotherQuota() async {
+    func testMissingWeekIsNotInventedFromAnotherQuota() async {
         let reader = FixtureReader(), client = FixtureClient()
-        await client.fail(.fable, error: .missingFable)
+        await client.fail(.fable, error: .missingWeekly)
         let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false, stateStore: MemoryRefreshStateStore())
         await model.refresh()
         XCTAssertEqual(model.snapshots[1].remainingText, "—")
-        XCTAssertEqual(model.issues["claude-fable"], "Fable limit unavailable")
+        XCTAssertEqual(model.issues["claude-fable"], "Weekly limit unavailable")
     }
 
     func testEvidenceHasNoCredentialsOrAccountIdentifiers() async {
@@ -223,7 +227,7 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(second.snapshots[1].accountID, "B")
     }
 
-    func testPassiveFableCacheUpdatesDuringCooldownWithoutHTTPOrRetimestamping() async {
+    func testPassiveClaudeCacheUpdatesDuringCooldownWithoutHTTPOrRetimestamping() async {
         let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
         let store = MemoryRefreshStateStore()
         let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
@@ -232,7 +236,7 @@ final class LiveUsageModelTests: XCTestCase {
         await model.refreshProvider(.fable)
         time.advance(60)
         let captured = time.now.addingTimeInterval(-10), end = time.now.addingTimeInterval(100000)
-        let cache = UsageSnapshot(provider: "claude-fable", title: "Fable", accountID: "C", accountLabel: "Fixture",
+        let cache = UsageSnapshot(provider: "claude-fable", title: "Claude", accountID: "C", accountLabel: "Fixture",
             usedPercent: 11, windowStart: end.addingTimeInterval(-604800), resetsAt: end, observedAt: captured,
             source: "claude-code-cache")
         await client.setCache(cache)
@@ -243,7 +247,7 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(model.snapshots[1].observedAt, captured)
         XCTAssertEqual(store.load(.fable)?.reason, .rateLimit)
         let readout = MenuReadout(snapshot: model.snapshots[1], now: time.now, issue: model.issues["claude-fable"])
-        XCTAssertEqual(readout.remainingLabel, "left")
+        XCTAssertEqual(readout.usedLabel, "used")
         XCTAssertFalse(readout.summary.contains("Rate limited"))
     }
 
@@ -329,6 +333,47 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(codex, 4); XCTAssertEqual(claude, 4)
         XCTAssertNil(model.issues["claude-fable"])
         XCTAssertEqual(model.scheduledAttempts[.fable], time.now.addingTimeInterval(300))
+    }
+
+    func testSwitchingAccountDropsTheOldReadingAtOnceAndFetchesTheNewOne() async throws {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        await model.refresh()
+        XCTAssertEqual(model.snapshots.map(\.accountID), ["A", "C"])
+        time.advance(10) // well inside both providers' normal spacing
+        await reader.select(.codex, account: "B")
+        await reader.select(.fable, account: "B")
+        await model.auditCredentials()
+        // The previous accounts' numbers are gone before the new account's reading arrives.
+        XCTAssertFalse(model.snapshots.contains { $0.accountID == "A" || $0.accountID == "C" })
+        let deadline = Date().addingTimeInterval(5)
+        while model.snapshots.contains(where: { $0.accountID != "B" }), Date() < deadline {
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertEqual(model.snapshots.map(\.accountID), ["B", "B"])
+        XCTAssertEqual(model.snapshots.map(\.remainingText), ["54%", "54%"])
+        // A new account does not wait out the previous account's normal spacing.
+        let codex = await client.count(.codex), claude = await client.count(.fable)
+        XCTAssertEqual(codex, 2); XCTAssertEqual(claude, 2)
+    }
+
+    func testClaudeSwitchWithoutKeychainAccessNeverShowsThePreviousAccount() async {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        await model.refreshProvider(.fable)
+        XCTAssertEqual(model.snapshots[1].accountID, "C")
+        // Claude Code switched to D and rewrote its Keychain item: only D's identity is readable,
+        // and no same-account Web session exists.
+        await reader.use(LiveCredential(provider: .fable, accessToken: "", accountHint: "D",
+                                        credentialIssue: .keychainPermission))
+        await client.fail(.fable, error: .keychainPermission)
+        time.advance(10)
+        await model.refreshProvider(.fable)
+        XCTAssertNil(model.snapshots[1].accountID)
+        XCTAssertEqual(model.snapshots[1].remainingText, "—")
+        XCTAssertEqual(model.issues["claude-fable"], "Keychain access needed")
     }
 
     func testAutomaticModelFetchesWhenTheGateReopensWithoutAnotherTrigger() async throws {

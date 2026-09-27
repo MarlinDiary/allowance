@@ -45,7 +45,7 @@ final class CookieFormatTests: XCTestCase {
         XCTAssertNil(DesktopSessionCookie.decrypt(data, password: Data("wrong-password".utf8)))
         XCTAssertNil(DesktopSessionCookie.decrypt(Data("v20unsupported".utf8), password: password))
     }
-    func testDesktopPlaintextCookieReadIsReadOnlyAndScoped() throws {
+    func testDesktopPlaintextCookieReadIsReadOnlyAndScoped() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Quota-cookie-fixture-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -56,7 +56,8 @@ final class CookieFormatTests: XCTestCase {
         XCTAssertEqual(sqlite3_exec(database, "CREATE TABLE cookies(host_key TEXT,name TEXT,value TEXT,encrypted_value BLOB,expires_utc INTEGER); INSERT INTO cookies VALUES('.claude.ai','sessionKey','sk-ant-synthetic-session',X'',\(expiry));", nil, nil, nil), SQLITE_OK)
         sqlite3_close(database)
         let before = try Data(contentsOf: file)
-        XCTAssertEqual(DesktopSessionCookie.read(file, at: Date()), "sk-ant-synthetic-session")
+        let key = await DesktopSessionCookie.read(file, at: Date())
+        XCTAssertEqual(key, "sk-ant-synthetic-session")
         XCTAssertEqual(try Data(contentsOf: file), before)
     }
 }

@@ -65,7 +65,7 @@ actor LiveUsageTransport: QuotaFetching {
                     verifiedClaudeProfiles = [fingerprint: id]; verifiedAccount = id
                 }
                 let data = try await oauth("https://api.anthropic.com/api/oauth/usage", credential: credential)
-                return try LivePayloadDecoder.fable(data, verifiedAccount: verifiedAccount, now: Date()).withSource("oauth")
+                return try LivePayloadDecoder.claude(data, verifiedAccount: verifiedAccount, now: Date()).withSource("oauth")
             } catch let error as LiveReadError {
                 if case .rateLimited = error { preferWeb = true; throw error }
                 guard Self.recoverable(error) else { throw error }
@@ -78,7 +78,7 @@ actor LiveUsageTransport: QuotaFetching {
         } catch let error as UsagePayloadError {
             switch error {
             case .unexpectedAccount: throw LiveReadError.accountChanged
-            case .missingWeeklyWindow: throw provider == .fable ? LiveReadError.missingFable : LiveReadError.invalidResponse
+            case .missingWeeklyWindow: throw provider == .fable ? LiveReadError.missingWeekly : LiveReadError.invalidResponse
             case .invalidResponse: throw LiveReadError.invalidResponse
             }
         } catch let error as LiveReadError { throw error }
@@ -87,7 +87,7 @@ actor LiveUsageTransport: QuotaFetching {
     }
     private static func recoverable(_ error: LiveReadError) -> Bool {
         switch error {
-        case .notSignedIn, .loginExpired, .keychainPermission, .profileScopeMissing, .network, .invalidResponse, .missingFable: return true
+        case .notSignedIn, .loginExpired, .keychainPermission, .profileScopeMissing, .network, .invalidResponse, .missingWeekly: return true
         case .http(let code): return code >= 500
         default: return false
         }
@@ -134,7 +134,7 @@ actor LiveUsageTransport: QuotaFetching {
                     verifiedWebProfiles = [fingerprint: proof]
                 }
                 let data = try await web("organizations/" + organization + "/usage", key: session.key)
-                return try LivePayloadDecoder.fable(data, verifiedAccount: account, now: Date())
+                return try LivePayloadDecoder.claude(data, verifiedAccount: account, now: Date())
                     .withSource("web:" + session.source)
             } catch let error as LiveReadError {
                 // Never hop to another cookie/source after 429 or a network challenge.

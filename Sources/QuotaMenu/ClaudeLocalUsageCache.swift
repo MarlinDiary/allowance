@@ -25,7 +25,7 @@ struct ClaudeLocalUsageCache: ClaudeUsageCacheReading {
               let bytes = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
         let captured = Date(timeIntervalSince1970: milliseconds / 1000)
         guard captured <= now, now.timeIntervalSince(captured) <= 900,
-              let value = try? LivePayloadDecoder.fable(bytes, verifiedAccount: expectedAccount, now: captured),
+              let value = try? LivePayloadDecoder.claude(bytes, verifiedAccount: expectedAccount, now: captured),
               let end = value.resetsAt, end > now else { return nil }
         return value.withSource("claude-code-cache")
     }

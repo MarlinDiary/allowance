@@ -5,10 +5,11 @@ struct MenuReadout: Equatable {
     let title: String
     let subtitle: String
     let brand: ProviderBrand
-    let remaining: String
+    /// The used share, matching the bar's fill.
+    let used: String
     let remainingFraction: Double?
     let usedFraction: Double?
-    let remainingLabel: String
+    let usedLabel: String
     let unavailableText: String?
     let reset: String
     let pace: String
@@ -17,8 +18,8 @@ struct MenuReadout: Equatable {
         let isCodex = snapshot.provider == "codex"
         title = isCodex ? "Codex" : "Claude Code"
         brand = isCodex ? .openAI : .claude
-        subtitle = "\(isCodex ? "Weekly" : "Fable · Weekly") · \(snapshot.accountLabel)"
-        remaining = snapshot.remainingText
+        subtitle = "Weekly · \(snapshot.accountLabel)"
+        used = snapshot.usedText
         remainingFraction = snapshot.remainingFraction
         usedFraction = snapshot.remainingFraction.map { 1 - $0 }
         // A weekly reading is a cached observation, not a live stream. Short 429s are
@@ -29,7 +30,7 @@ struct MenuReadout: Equatable {
         let tooOld = snapshot.isStale(at: now, maxAge: freshnessBudget) || expiredWindow
         let visibleIssue = rateLimited ? nil : issue
         let outOfDate = snapshot.remainingFraction != nil && (visibleIssue != nil || tooOld)
-        remainingLabel = snapshot.remainingFraction == nil ? "" : (outOfDate ? "last known" : "left")
+        usedLabel = snapshot.remainingFraction == nil ? "" : (outOfDate ? "last known" : "used")
         unavailableText = snapshot.remainingFraction == nil ? (rateLimited ? "Updating" : issue ?? "No usage data") : nil
         reset = snapshot.resetText(at: now)
         pace = rateLimited ? (tooOld ? "Delayed" : snapshot.paceText(at: now))
@@ -38,8 +39,8 @@ struct MenuReadout: Equatable {
 
     var summary: String {
         if let unavailableText { return "\(title): \(unavailableText). \(subtitle)." }
-        let freshness = remainingLabel == "last known" ? "Last known: " : ""
-        return "\(title): \(freshness)\(remaining) remaining. \(subtitle). \(reset). \(pace)."
+        let freshness = usedLabel == "last known" ? "Last known: " : ""
+        return "\(title): \(freshness)\(used) used. \(subtitle). \(reset). \(pace)."
     }
 
     static func tooltip(snapshots: [UsageSnapshot], now: Date, status: String) -> String {

@@ -1,7 +1,5 @@
 import CommonCrypto
 import Foundation
-import LocalAuthentication
-import Security
 import SQLite3
 
 struct ClaudeWebSession: Sendable {
@@ -27,7 +25,7 @@ struct NativeClaudeWebSessions: ClaudeWebSessionReading {
                 }
             }
             let desktop = home.appendingPathComponent("Library/Application Support/Claude/Cookies")
-            if let key = DesktopSessionCookie.read(desktop, at: Date()), !result.contains(where: { $0.key == key }) {
+            if let key = await DesktopSessionCookie.read(desktop, at: Date()), !result.contains(where: { $0.key == key }) {
                 result.append(ClaudeWebSession(key: key, source: "claude-desktop"))
             }
             return result
@@ -85,7 +83,18 @@ enum SafariSessionCookie {
 }
 
 enum DesktopSessionCookie {
-    static func read(_ file: URL, at now: Date) -> String? {
+    private enum Stored { case plain(String), encrypted(Data) }
+
+    static func read(_ file: URL, at now: Date) async -> String? {
+        switch storedValue(file, at: now) {
+        case .plain(let key): return key
+        case .encrypted(let data):
+            guard let password = await safeStoragePassword() else { return nil }
+            return decrypt(data, password: password)
+        case nil: return nil
+        }
+    }
+    private static func storedValue(_ file: URL, at now: Date) -> Stored? {
         var database: OpaquePointer?
         guard sqlite3_open_v2(file.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
             if let database { sqlite3_close(database) }; return nil
@@ -101,21 +110,16 @@ enum DesktopSessionCookie {
         guard expiry > now.timeIntervalSince1970 else { return nil }
         if let text = sqlite3_column_text(statement, 0) {
             let key = String(cString: text)
-            if NativeClaudeWebSessions.valid(key) { return key }
+            if NativeClaudeWebSessions.valid(key) { return .plain(key) }
         }
         let count = Int(sqlite3_column_bytes(statement, 1))
-        guard (4...8192).contains(count), let blob = sqlite3_column_blob(statement, 1),
-              let password = safeStoragePassword() else { return nil }
-        return decrypt(Data(bytes: blob, count: count), password: password)
+        guard (4...8192).contains(count), let blob = sqlite3_column_blob(statement, 1) else { return nil }
+        return .encrypted(Data(bytes: blob, count: count))
     }
-    private static func safeStoragePassword() -> Data? {
+    // Background only: Allowance never asks for Claude Desktop's key.
+    private static func safeStoragePassword() async -> Data? {
         for service in ["Claude Safe Storage", "Claude SafeStorage"] {
-            let context = LAContext(); context.interactionNotAllowed = true
-            var result: CFTypeRef?
-            let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service, kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne, kSecUseAuthenticationContext as String: context]
-            if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data { return data }
+            if case .success(let data) = await KeychainAccess.password(service: service, allowInteraction: false) { return data }
         }
         return nil
     }

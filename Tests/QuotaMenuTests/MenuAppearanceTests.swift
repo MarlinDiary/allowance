@@ -131,7 +131,7 @@ final class MenuAppearanceTests: XCTestCase {
                 let provider = try XCTUnwrap(row["provider"] as? String)
                 if let issue = row["issue"] as? String { issues[provider] = issue }
                 let end = (row["resetsAt"] as? Double).map(Date.init(timeIntervalSince1970:))
-                return UsageSnapshot(provider: provider, title: provider == "codex" ? "Codex" : "Fable",
+                return UsageSnapshot(provider: provider, title: provider == "codex" ? "Codex" : "Claude",
                     accountID: nil, accountLabel: "Current account", usedPercent: row["usedPercent"] as? Double,
                     windowStart: end?.addingTimeInterval(-604800), resetsAt: end,
                     observedAt: liveNow.addingTimeInterval(-(row["ageSeconds"] as? Double ?? 0)))
