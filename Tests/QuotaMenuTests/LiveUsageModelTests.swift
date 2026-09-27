@@ -358,6 +358,38 @@ final class LiveUsageModelTests: XCTestCase {
         XCTAssertEqual(codex, 2); XCTAssertEqual(claude, 2)
     }
 
+    func testAccountSwitchNoticeNamesTheNewAccountOnlyOnARealSwitch() async {
+        let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
+        let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,
+            stateStore: MemoryRefreshStateStore(), clock: { time.now })
+        var notices: [String] = []
+        model.onAccountSwitch = { provider, email in notices.append("\(provider.rawValue) \(email ?? "-")") }
+        await model.refresh()
+        XCTAssertEqual(notices, [], "The first accounts after launch are not a switch")
+        await reader.select(.codex, account: "A", token: "synthetic-renewed")
+        await model.auditCredentials()
+        XCTAssertEqual(notices, [], "Token renewal is not a switch")
+        await reader.use(LiveCredential(provider: .codex, accessToken: "synthetic-B", accountHint: "B", accountEmail: "b@example.com"))
+        await model.auditCredentials()
+        XCTAssertEqual(notices, ["codex b@example.com"])
+        // Signing out and into another account is still a switch; signing back into it is not.
+        await reader.fail(.codex, error: .notSignedIn)
+        await model.auditCredentials()
+        await reader.use(LiveCredential(provider: .codex, accessToken: "synthetic-D", accountHint: "D", accountEmail: "d@example.com"))
+        await model.auditCredentials()
+        await model.auditCredentials()
+        XCTAssertEqual(notices, ["codex b@example.com", "codex d@example.com"])
+        // A Claude organization switch changes whose weekly limit is shown.
+        await reader.use(LiveCredential(provider: .fable, accessToken: "synthetic-C", accountHint: "C",
+                                        organizationHint: "org-2", accountEmail: "c@example.com"))
+        await model.auditCredentials()
+        XCTAssertEqual(notices.last, "claude-fable c@example.com")
+        // A read without a real account identity never announces anything.
+        await reader.use(LiveCredential(provider: .fable, accessToken: "synthetic-X", accountHint: nil))
+        await model.auditCredentials()
+        XCTAssertEqual(notices.count, 3)
+    }
+
     func testClaudeSwitchWithoutKeychainAccessNeverShowsThePreviousAccount() async {
         let reader = FixtureReader(), client = FixtureClient(), time = FixtureClock()
         let model = LiveUsageModel(reader: reader, client: client, startAutomatically: false,

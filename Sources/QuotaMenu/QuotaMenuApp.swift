@@ -55,6 +55,7 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }, refresh: { [weak self] in
             Task { await self?.model.refresh() }
         })
+        model.onAccountSwitch = { provider, email in AccountSwitchNotice.post(for: provider, email: email) }
         resetMonitor = ResetMonitor(onConfirmed: { [weak self] in
             self?.model.refreshIfNeeded()
         })

@@ -9,7 +9,7 @@ A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code weekly
 
 - Used percentage, reset countdown and **Slow · Steady · Fast** usage pace.
 - A thin, read-only bar: **filled = used; empty = remaining**.
-- Standard macOS notifications for Tibo's explicit reset announcements and confirmed resets.
+- Standard macOS notifications for Tibo's explicit reset announcements, confirmed resets and account switches.
 - Native `NSMenu`, compact SwiftUI information rows, English UI. No dashboard, main window, separator lines, Refresh button or hover explanations.
 - A layered Icon Composer app icon on macOS 26+: one complete silver ring above an always-dark charcoal glass backplate. Default and Dark appearances use the same design; the matching legacy icon is also dark. The white template menu-bar symbol is unchanged.
 
@@ -53,11 +53,15 @@ The independent [CodexResets public feed](https://codex-resets.com/api/docs) is 
 
 The historical latest execution is silently baselined on first launch; a pending announcement can notify immediately. Announcement and execution IDs are persisted separately and deduplicated across restarts. Failed OS submissions retry on a later eligible poll. Feed failures add no menu error rows. Notifications describe the global feed, not proof that every account has updated. This is polling, not APNs.
 
+### Account switch notifications
+
+When the account signed in to Codex or Claude Code changes while Allowance is running, a standard notification names the new account, for example *Codex account switched — Allowance now shows usage for name@example.com.* Signing out and into another account counts, and so does moving Claude Code to another organization, since its weekly limit is per organization. The first account seen after launch, token renewals and signing back into the same account do not notify. A newer switch replaces the previous notice.
+
 ## Privacy
 
 No analytics, telemetry, project-server credential upload, account creation, CLI subprocess/inference probes or credential refresh/write.
 
-Existing login files, Keychain entries and browser session stores are read locally. Cookies are sent only to Claude, OAuth tokens only to their provider. Reset requests need no account credentials. One last-good snapshot and scheduling state per provider are saved in local app preferences, bound to account identity; reset notice IDs are also stored locally. Diagnostics exclude tokens, emails and account identifiers.
+Existing login files, Keychain entries and browser session stores are read locally. Cookies are sent only to Claude, OAuth tokens only to their provider. Reset requests need no account credentials. One last-good snapshot and scheduling state per provider are saved in local app preferences, bound to account identity; reset notice IDs are also stored locally. Account email addresses are read from the CLIs' local login files only to name the account in a switch notification; they are never sent or stored. Diagnostics exclude tokens, emails and account identifiers.
 
 Public source contains no local account data or signing credentials. Independently implemented; not affiliated with OpenAI, Anthropic or Apple. [MIT license](LICENSE) · [Provider artwork and trademarks](NOTICE.md)
 

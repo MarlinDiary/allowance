@@ -34,6 +34,7 @@ struct ClaudeLocalUsageCache: ClaudeUsageCacheReading {
 struct ClaudeAccountContext {
     let account: String
     let organization: String?
+    let email: String?
     static var fileURL: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
         if let root = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] {
@@ -41,11 +42,12 @@ struct ClaudeAccountContext {
         }
         return home.appendingPathComponent(".claude.json")
     }
-    static func load() -> ClaudeAccountContext? {
-        guard let data = try? Data(contentsOf: fileURL),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+    static func load() -> ClaudeAccountContext? { (try? Data(contentsOf: fileURL)).flatMap(parse) }
+    static func parse(_ data: Data) -> ClaudeAccountContext? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let account = root["oauthAccount"] as? [String: Any],
               let id = account["accountUuid"] as? String, !id.isEmpty else { return nil }
-        return ClaudeAccountContext(account: id, organization: account["organizationUuid"] as? String)
+        return ClaudeAccountContext(account: id, organization: account["organizationUuid"] as? String,
+                                    email: account["emailAddress"] as? String)
     }
 }

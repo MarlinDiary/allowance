@@ -15,13 +15,39 @@ struct LiveCredential: Equatable, Sendable {
     let accountHint: String?
     let organizationHint: String?
     let credentialIssue: LiveReadError?
+    /// Display only: names the account in a switch notification. Never sent or logged.
+    let accountEmail: String?
     init(provider: QuotaProvider, accessToken: String, accountHint: String?,
-         organizationHint: String? = nil, credentialIssue: LiveReadError? = nil) {
+         organizationHint: String? = nil, credentialIssue: LiveReadError? = nil, accountEmail: String? = nil) {
         self.provider = provider; self.accessToken = accessToken; self.accountHint = accountHint
         self.organizationHint = organizationHint; self.credentialIssue = credentialIssue
+        self.accountEmail = accountEmail.flatMap(Self.displayEmail)
     }
     var tokenFingerprint: String { SHA256.hash(data: Data(accessToken.utf8)).map { String(format: "%02x", $0) }.joined() }
-    var identity: String { accountHint ?? tokenFingerprint }
+    // Claude's weekly limit belongs to an organization, so switching organizations under
+    // one account is an account switch too.
+    var identity: String {
+        guard let accountHint else { return tokenFingerprint }
+        return organizationHint.map { accountHint + ":" + $0 } ?? accountHint
+    }
+
+    static func displayEmail(_ value: String) -> String? {
+        let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (3...254).contains(value.count), value.contains("@"), !value.contains(where: \.isNewline) else { return nil }
+        return value
+    }
+
+    /// The `email` claim of a CLI's own ID token, decoded locally for display. The token is
+    /// neither verified nor sent anywhere.
+    static func email(fromIDToken token: String) -> String? {
+        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return claims["email"] as? String
+    }
 }
 
 enum LiveReadError: Error, Equatable {
@@ -56,7 +82,7 @@ struct SystemCredentialReader: CredentialReading {
                 // Identity metadata is not a bearer token. It lets a same-account local
                 // cache or existing Web session work when the CLI token is unavailable.
                 return LiveCredential(provider: provider, accessToken: "", accountHint: context.account,
-                    organizationHint: context.organization, credentialIssue: error)
+                    organizationHint: context.organization, credentialIssue: error, accountEmail: context.email)
             }
             throw error
         }
@@ -74,7 +100,8 @@ struct SystemCredentialReader: CredentialReading {
                   let account = tokens["account_id"] as? String, !account.isEmpty else {
                 throw LiveReadError.notSignedIn
             }
-            return LiveCredential(provider: provider, accessToken: access, accountHint: account)
+            return LiveCredential(provider: provider, accessToken: access, accountHint: account,
+                accountEmail: (tokens["id_token"] as? String).flatMap(LiveCredential.email(fromIDToken:)))
         }
         let customDirectory = environment["CLAUDE_CONFIG_DIR"]
         let root = customDirectory.map { URL(fileURLWithPath: $0) } ?? home.appendingPathComponent(".claude")
@@ -105,6 +132,6 @@ struct SystemCredentialReader: CredentialReading {
         // This is an identity hint only. The server profile must prove it before usage is published.
         let account = ClaudeAccountContext.load()
         return LiveCredential(provider: provider, accessToken: access, accountHint: account?.account,
-                              organizationHint: account?.organization)
+                              organizationHint: account?.organization, accountEmail: account?.email)
     }
 }

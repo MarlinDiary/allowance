@@ -17,6 +17,10 @@ final class LiveUsageModel: ObservableObject {
     private var generations: [QuotaProvider: Int] = [:]
     private var inFlight = Set<QuotaProvider>()
     private var observedTokens: [QuotaProvider: String] = [:]
+    /// Called with the new account's email when a provider switches from one known account
+    /// to another, even across a sign-out. The first account seen after launch is not a switch.
+    var onAccountSwitch: ((QuotaProvider, String?) -> Void)?
+    private var knownAccounts: [QuotaProvider: String] = [:]
     /// Each provider's next refresh, set for the moment its request gate reopens.
     private(set) var scheduledAttempts: [QuotaProvider: Date] = [:]
     private var attemptTimers: [QuotaProvider: Timer] = [:]
@@ -62,6 +66,13 @@ final class LiveUsageModel: ObservableObject {
     @discardableResult
     private func select(_ credential: LiveCredential) -> Bool {
         let provider = credential.provider
+        // Only a real account identity counts; a token fingerprint stand-in could be a glitch.
+        if credential.accountHint != nil {
+            if let previous = knownAccounts[provider], previous != credential.identity {
+                onAccountSwitch?(provider, credential.accountEmail)
+            }
+            knownAccounts[provider] = credential.identity
+        }
         let accountChanged = selectedIdentities[provider] != credential.identity
         let tokenChanged = observedTokens[provider] != credential.tokenFingerprint
         guard accountChanged || tokenChanged else { return false }
