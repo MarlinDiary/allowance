@@ -14,7 +14,7 @@
 
 Use a valid **Developer ID Application** identity and an **existing** notarytool Keychain profile. Never commit credentials.
 
-If a profile has not been configured, run `xcrun notarytool store-credentials Allowance-Notary` in your own terminal. Follow the interactive prompts; the app-specific password is entered at the secure prompt, not placed in command history or shared in a chat. The tool validates credentials before storing them. Then check `xcrun notarytool history --keychain-profile Allowance-Notary` before submitting a release.
+If a profile has not been configured, create one in your own terminal. An App Store Connect API key is the most reliable: in App Store Connect → Users and Access → Integrations → App Store Connect API, generate a Team Key with Developer access, download its `.p8` once, and run `xcrun notarytool store-credentials Allowance-Notary --key <AuthKey.p8> --key-id <KEY ID> --issuer <ISSUER ID>`. Keep the `.p8` outside the repository. An Apple ID also works (`xcrun notarytool store-credentials Allowance-Notary --team-id <TEAMID>`) but needs an app-specific password for the Apple ID enrolled in that team; an ordinary password fails with HTTP 401. Enter secrets only at the tool's own prompt or from your own files, never in a chat. The tool validates credentials before storing them. Then check `xcrun notarytool history --keychain-profile Allowance-Notary` before submitting a release.
 
 ```sh
 export CODE_SIGN_IDENTITY='Developer ID Application: YOUR NAME (TEAMID)'
@@ -24,7 +24,7 @@ python3 Scripts/verify-icon.py dist/Allowance.app --require-layered
 REQUIRE_NOTARIZATION=1 bash Scripts/package.sh dist/Allowance.app dist
 ```
 
-Packaging waits for Apple's acceptance, staples/validates the app, creates the ZIP and signed DMG, then notarizes/staples/assesses the DMG before checksumming it. Inspect `notary-app.json` and `notary-dmg.json` and retain both acceptance records. The scripts consume an existing profile; they do not store credentials.
+Packaging waits for Apple's acceptance, staples/validates the app, creates the ZIP and signed DMG, then notarizes/staples/assesses the DMG before checksumming it. Inspect `notary-app.json` and `notary-dmg.json` and retain both acceptance records; move a previous release's artifacts out of `dist` first, since packaging rewrites them. The scripts consume an existing profile; they do not store credentials.
 
 Without a usable profile, publish only an explicitly labeled signed **prerelease**. Developer ID signing alone is not notarization. Never claim source or preview builds passed Apple notarization.
 
