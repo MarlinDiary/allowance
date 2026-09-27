@@ -21,7 +21,7 @@ A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code weekly
 
 Requires **macOS 13 or later**. Download the universal Apple Silicon / Intel ZIP or DMG from [Releases](https://github.com/MarlinDiary/allowance/releases), move **Allowance.app** into Applications and open it. Existing CLI logins are used; there is no separate sign-in screen.
 
-**Current downloads are Developer ID-signed public previews. Apple notarization is not complete; see each release's explicit signing status.** A developer certificate alone is not notarization. Do not assume an ad-hoc source build is a signed release.
+**From 0.6.17, downloads are Developer ID-signed and notarized by Apple, with the ticket stapled to both the app and the DMG.** Earlier previews were signed but not notarized; each release states its status. A developer certificate alone is not notarization. Do not assume an ad-hoc source build is a signed release.
 
 Allow notifications when macOS asks. Later, change access in System Settings → Notifications → Allowance. Focus and system settings control presentation. The app does not modify launch-at-login settings.
 
