@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.18
+
+- New clear-glass app icon: a silver Liquid Glass arc over a faint track, like a partly used allowance, on a neutral grey glass backplate. Default and Dark appearances keep the same colours, matching the system's Clear icon style; Tinted and Clear follow the system.
+- The arc is filled outline artwork, so the icon Apple generates for macOS 13–15 shows the same hollow gauge. Icon checks now reject a recoloured stroke, which that generated icon fills as a solid wedge.
+
 ## 0.6.17
 
 - Claude Code shows its overall weekly limit across models instead of the Fable limit. Model-specific limits such as Fable are never substituted for it, and a saved Fable reading is never restored as weekly.

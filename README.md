@@ -11,7 +11,7 @@ A quiet, native macOS menu-bar app for **Codex weekly** and **Claude Code weekly
 - A thin, read-only bar: **filled = used; empty = remaining**.
 - Standard macOS notifications for Tibo's explicit reset announcements, confirmed resets and account switches.
 - Native `NSMenu`, compact SwiftUI information rows, English UI. No dashboard, main window, separator lines, Refresh button or hover explanations.
-- A layered Icon Composer app icon on macOS 26+: one complete silver ring above an always-dark charcoal glass backplate. Default and Dark appearances use the same design; the matching legacy icon is also dark. The white template menu-bar symbol is unchanged.
+- A layered Icon Composer app icon on macOS 26+: a clear-glass gauge, one silver arc over a faint track on a neutral grey glass backplate. Default and Dark appearances keep the same colours, matching the system's Clear icon style; older macOS gets a matching generated icon. The white template menu-bar symbol is unchanged.
 
 <p><img src="docs/images/menu-light.png" width="260" alt="Allowance light information rows"> <img src="docs/images/menu-dark.png" width="260" alt="Allowance dark information rows"></p>
 

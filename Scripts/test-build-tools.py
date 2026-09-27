@@ -18,65 +18,96 @@ SPEC.loader.exec_module(VERIFY_ICON)
 
 class IconPlaneTests(unittest.TestCase):
     def setUp(self):
-        self.vector = {"AssetType": "Vector", "Name": "AppIcon_Assets/Circle"}
-        self.group = {"AssetType": "IconGroup", "Name": "AppIcon/Circle", "LayerCount": 1, "Layers": [self.vector]}
-        self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 2,
-                      "Layers": [{"Name": "AppIcon_Assets/Gradient-1"},
-                                 {"AssetType": "IconGroup", "Name": "AppIcon/Circle", "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}]}
-        self.items = [self.vector, self.group, self.stack]
+        self.vectors = [{"AssetType": "Vector", "Name": "AppIcon_Assets/Track"}, {"AssetType": "Vector", "Name": "AppIcon_Assets/Arc"}]
+        self.groups = [{"AssetType": "IconGroup", "Name": "AppIcon/Track", "LayerCount": 1, "Layers": [self.vectors[0]]},
+                       {"AssetType": "IconGroup", "Name": "AppIcon/Arc", "LayerCount": 1, "Layers": [self.vectors[1]]}]
+        plane = lambda name: {"AssetType": "IconGroup", "Name": name, "Appearance": "NSAppearanceNameAqua", "LayerHasSpecular": True}
+        self.stack = {"AssetType": "IconImageStack", "CanvasWidth": 1024, "CanvasHeight": 1024, "LayerCount": 3,
+                      "Layers": [{"Name": "AppIcon_Assets/Gradient-1"}, plane("AppIcon/Track"), plane("AppIcon/Arc")]}
+        self.items = self.vectors + self.groups + [self.stack]
 
-    def test_one_foreground_plane_above_backplate_passes(self):
-        self.assertEqual(VERIFY_ICON.validate_compiled_layout(self.items)["Vector"], 1)
+    def test_glass_arc_above_its_track_passes(self):
+        self.assertEqual(VERIFY_ICON.validate_compiled_layout(self.items)["Vector"], 2)
 
-    def test_independent_material_groups_are_rejected(self):
-        self.group["Name"] = "AppIcon/Needle"
-        with self.assertRaisesRegex(AssertionError, "Split foreground"):
+    def test_unexpected_material_group_is_rejected(self):
+        self.groups[1]["Name"] = "AppIcon/Needle"
+        with self.assertRaisesRegex(AssertionError, "Unexpected foreground"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
-    def test_split_artwork_inside_shared_group_is_rejected(self):
-        self.group["Layers"].append(copy.deepcopy(self.vector))
-        self.group["LayerCount"] = 2
+    def test_split_artwork_inside_a_part_is_rejected(self):
+        self.groups[1]["Layers"].append(copy.deepcopy(self.vectors[1]))
+        self.groups[1]["LayerCount"] = 2
         with self.assertRaisesRegex(AssertionError, "one artwork layer"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
     def test_missing_foreground_glass_is_rejected(self):
-        self.stack["Layers"][1]["LayerHasSpecular"] = False
+        self.stack["Layers"][2]["LayerHasSpecular"] = False
         with self.assertRaisesRegex(AssertionError, "glass highlights missing"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
-    def test_duplicate_foreground_plane_in_one_appearance_is_rejected(self):
-        self.stack["Layers"].append(copy.deepcopy(self.stack["Layers"][1]))
-        with self.assertRaisesRegex(AssertionError, "Multiple foreground planes"):
+    def test_duplicate_plane_in_one_appearance_is_rejected(self):
+        self.stack["Layers"].append(copy.deepcopy(self.stack["Layers"][2]))
+        with self.assertRaisesRegex(AssertionError, "Multiple planes"):
+            VERIFY_ICON.validate_compiled_layout(self.items)
+
+    def test_arc_below_its_track_is_rejected(self):
+        self.stack["Layers"][1:] = reversed(self.stack["Layers"][1:])
+        with self.assertRaisesRegex(AssertionError, "above its track"):
             VERIFY_ICON.validate_compiled_layout(self.items)
 
 
-class RingArtworkTests(unittest.TestCase):
+class GaugeArtworkTests(unittest.TestCase):
     def setUp(self):
-        self.svg = ET.parse(ROOT / "Assets/AppIcon.icon/Assets/Circle.svg").getroot()
-        self.circle = self.svg[0]
+        self.source = ROOT / "Assets/AppIcon.icon"
+        self.ring, self.arc = VERIFY_ICON.validate_sources(self.source)
 
-    def test_monochrome_complete_circle_without_gap(self):
-        self.assertEqual(len(self.svg), 1)
-        self.assertEqual(self.circle.tag, "{http://www.w3.org/2000/svg}circle")
-        self.assertEqual(self.circle.attrib["fill"], "none")
-        self.assertEqual(self.circle.attrib["stroke"], "#c3cbd6")
-        self.assertNotIn("d", self.circle.attrib)
+    def test_arc_rides_its_track_from_twelve_oclock(self):
+        start, radius, width, sweep = VERIFY_ICON.arc_geometry(self.arc.attrib["d"])
+        self.assertEqual((radius, width), (float(self.ring.attrib["r"]), float(self.ring.attrib["stroke-width"])))
+        self.assertEqual(start, (512.0, 512.0 - radius - width / 2))
+        self.assertAlmostEqual(sweep, 252, delta=1)
 
-    def test_original_circle_geometry(self):
-        self.assertEqual({key: self.circle.attrib[key] for key in ["cx", "cy", "r", "stroke-width"]},
-                         {"cx": "512", "cy": "512", "r": "266", "stroke-width": "70"})
-
-    def test_legacy_and_layered_foreground_match(self):
+    def test_legacy_and_layered_gauge_match(self):
         legacy = ET.parse(ROOT / "Assets/AppIcon.svg").getroot()
-        self.assertEqual(legacy[-1].attrib, self.circle.attrib)
+        circle = legacy.find("{http://www.w3.org/2000/svg}circle")
+        path = legacy.find("{http://www.w3.org/2000/svg}path")
+        for key in ["cx", "cy", "r", "stroke-width"]:
+            self.assertEqual(circle.attrib[key], self.ring.attrib[key])
+        self.assertEqual(path.attrib["d"], self.arc.attrib["d"])
 
-    def test_dark_only_backplate_and_dark_legacy_colors(self):
+    def test_clear_glass_colours_in_default_and_dark(self):
         import json
-        document = json.loads((ROOT / "Assets/AppIcon.icon/icon.json").read_text())
-        self.assertEqual(document["fill"], {"solid": "extended-srgb:0.10980,0.10980,0.11765,1.00000"})
+        document = json.loads((self.source / "icon.json").read_text())
+        for fills in (document["fill-specializations"], document["groups"][0]["layers"][0]["fill-specializations"]):
+            self.assertEqual(fills[0]["value"], fills[1]["value"])
+            red, green, blue = (float(value) for value in fills[0]["value"]["automatic-gradient"].split(":")[1].split(",")[:3])
+            self.assertLess(max(red, green, blue) - min(red, green, blue), 0.02, "Clear glass stays neutral grey")
         legacy = ET.parse(ROOT / "Assets/AppIcon.svg").getroot()
-        stops = legacy.findall(".//{http://www.w3.org/2000/svg}stop")
-        self.assertEqual([stop.attrib["stop-color"] for stop in stops], ["#202024", "#111112"])
+        stops = [stop.attrib["stop-color"] for stop in legacy.iter("{http://www.w3.org/2000/svg}stop")]
+        self.assertEqual(stops, ["#4f4f51", "#454547", "#d7d6d9", "#c2c2c4"])
+
+    def test_coloured_stroke_artwork_is_rejected(self):
+        # Apple's generated legacy ICNS fills a recoloured stroke's whole path: a solid wedge.
+        stroke = ('<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
+                  '<path d="M 512 236 A 276 276 0 1 1 249.5 597.3" fill="none" stroke="#ffffff" stroke-width="104"/></svg>')
+        with tempfile.TemporaryDirectory(prefix="allowance-icon-") as directory:
+            copy_root = Path(directory) / "AppIcon.icon"
+            shutil.copytree(self.source, copy_root)
+            (copy_root / "Assets/Arc.svg").write_text(stroke)
+            with self.assertRaisesRegex(AssertionError, "needs filled artwork"):
+                VERIFY_ICON.validate_sources(copy_root)
+
+    def test_sources_rejecting_a_dark_mode_colour_change(self):
+        import json
+        original = (self.source / "icon.json").read_text()
+        document = json.loads(original)
+        document["fill-specializations"][1]["value"] = {"automatic-gradient": "extended-srgb:0.05,0.05,0.05,1"}
+        with tempfile.TemporaryDirectory(prefix="allowance-icon-") as directory:
+            copy_root = Path(directory) / "AppIcon.icon"
+            shutil.copytree(self.source, copy_root)
+            (copy_root / "icon.json").write_text(json.dumps(document))
+            with self.assertRaisesRegex(AssertionError, "Dark Mode must keep"):
+                VERIFY_ICON.validate_sources(copy_root)
 
 
 class BuildToolsTests(unittest.TestCase):
