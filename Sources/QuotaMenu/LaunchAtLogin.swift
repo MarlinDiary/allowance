@@ -51,7 +51,8 @@ final class LaunchAtLogin {
     func configureOnFirstLaunch() {
         guard installed, !defaults.bool(forKey: Self.configuredKey) else { return }
         defaults.set(true, forKey: Self.configuredKey)
-        guard service.status == .notRegistered else { return }
+        // A newly installed main app can report notFound until its first registration.
+        guard service.status == .notRegistered || service.status == .notFound else { return }
         do { try service.register() }
         catch {
             let error = error as NSError
@@ -66,7 +67,7 @@ final class LaunchAtLogin {
             userInfo: [NSLocalizedDescriptionKey: "Move Allowance.app into Applications before configuring launch at login."]) }
         if enabled {
             if service.status == .notRegistered || service.status == .notFound { try service.register() }
-        } else if service.status != .notRegistered {
+        } else if service.status == .enabled || service.status == .requiresApproval {
             try service.unregister()
         }
         defaults.set(true, forKey: Self.configuredKey)

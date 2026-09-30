@@ -47,7 +47,7 @@ final class LaunchAtLoginTests: XCTestCase {
     }
 
     func testExistingEnabledOrRevokedConsentIsNeverOverridden() {
-        for status in [LoginItemStatus.enabled, .requiresApproval, .notFound] {
+        for status in [LoginItemStatus.enabled, .requiresApproval] {
             withFixture { service, defaults in
                 service.status = status
                 LaunchAtLogin(service: service, defaults: defaults, installed: true).configureOnFirstLaunch()
@@ -66,6 +66,28 @@ final class LaunchAtLoginTests: XCTestCase {
             login.configureOnFirstLaunch()
             XCTAssertEqual(service.registrations, 1)
             XCTAssertEqual(service.status, .notRegistered)
+        }
+    }
+
+    func testFreshInstalledMainAppReportingNotFoundRegistersOnce() {
+        withFixture { service, defaults in
+            service.status = .notFound
+            let login = LaunchAtLogin(service: service, defaults: defaults, installed: true)
+            login.configureOnFirstLaunch(); login.configureOnFirstLaunch()
+            XCTAssertEqual(service.status, .enabled)
+            XCTAssertEqual(service.registrations, 1)
+        }
+    }
+
+    func testDisableOfAnAbsentMainAppIsAnIdempotentUserChoice() throws {
+        try withFixture { service, defaults in
+            service.status = .notFound
+            let login = LaunchAtLogin(service: service, defaults: defaults, installed: true)
+            try login.setEnabled(false)
+            login.configureOnFirstLaunch()
+            XCTAssertEqual(service.status, .notFound)
+            XCTAssertEqual(service.registrations, 0)
+            XCTAssertEqual(service.removals, 0)
         }
     }
 
