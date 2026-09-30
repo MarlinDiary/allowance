@@ -23,7 +23,9 @@ Requires **macOS 13 or later**. Download the universal Apple Silicon / Intel ZIP
 
 **From 0.6.17, downloads are Developer ID-signed and notarized by Apple, with the ticket stapled to both the app and the DMG.** Earlier previews were signed but not notarized; each release states its status. A developer certificate alone is not notarization. Do not assume an ad-hoc source build is a signed release.
 
-Allow notifications when macOS asks. Later, change access in System Settings → Notifications → Allowance. Focus and system settings control presentation. The app does not modify launch-at-login settings.
+Allow notifications when macOS asks. Later, change access in System Settings → Notifications → Allowance. Focus and system settings control presentation.
+
+**From 0.6.19, the first normal launch from Applications registers Allowance to open at login**, using Apple's `SMAppService.mainApp`. It starts quietly in the menu bar after you sign in, not before login, and opens no main window. Manage it in **System Settings → General → Login Items**. Removing or disabling it there stays respected on later launches; Allowance does not repeatedly register it. Builds, disk-image previews and diagnostic checks never automatically register a login item. There is no extra helper, LaunchAgent, timer or menu row for this feature.
 
 The normal menu is information-only. **Command-Q while the menu is open** quits through a hidden native menu command, without a visible Quit row. This is not a global hotkey and never captures Command-Q from another foreground app. Activity Monitor also works. Background Keychain reads never show a system prompt; when Claude Code's saved login is not readable, Allowance quietly uses another source, and an **Allow Keychain Access…** command appears only when nothing else works.
 
@@ -77,7 +79,10 @@ open dist/Allowance.app
 ./dist/Allowance.app/Contents/MacOS/Allowance --self-check
 ./dist/Allowance.app/Contents/MacOS/Allowance --source-check  # no HTTP
 ./dist/Allowance.app/Contents/MacOS/Allowance --live-check    # respects cooldown
+./dist/Allowance.app/Contents/MacOS/Allowance --login-item status  # read-only
 ```
+
+For an installed app, `Allowance.app/Contents/MacOS/Allowance --login-item enable` or `disable` explicitly configures the same native login item. `status` reports `enabled`, `notRegistered`, `requiresApproval` or `notFound`; `requiresApproval` needs action in System Settings. These controls are for local diagnostics, not a separate login mechanism.
 
 `ALLOWANCE_ARCHS=arm64` builds only Apple Silicon. `ALLOWANCE_BUILD_DIR` changes scratch storage. `ALLOWANCE_ICON_STYLE=layered` requires real layered compilation; `legacy` explicitly builds the matching static SVG. Default `auto` uses Apple's layered compiler on Xcode 26+, otherwise the static fallback. Compiler failures are not silently hidden. The existing native menu route is unchanged.
 

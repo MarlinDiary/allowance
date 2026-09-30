@@ -7,7 +7,22 @@ import QuotaCore
 enum EntryPoint {
     @MainActor
     static func main() {
-        if CommandLine.arguments.contains("--reset-check") {
+        if let index = CommandLine.arguments.firstIndex(of: "--login-item") {
+            let login = LaunchAtLogin()
+            guard CommandLine.arguments.indices.contains(index + 1),
+                  ["status", "enable", "disable"].contains(CommandLine.arguments[index + 1]) else {
+                fputs("Usage: Allowance --login-item status|enable|disable\n", stderr); exit(2)
+            }
+            let action = CommandLine.arguments[index + 1]
+            do {
+                if action != "status" { try login.setEnabled(action == "enable") }
+                let bytes = try JSONSerialization.data(withJSONObject: login.evidence, options: [.sortedKeys])
+                print(String(decoding: bytes, as: UTF8.self))
+            } catch {
+                let error = error as NSError
+                fputs("Launch at login: \(error.domain) / \(error.code): \(error.localizedDescription)\n", stderr); exit(1)
+            }
+        } else if CommandLine.arguments.contains("--reset-check") {
             Task { @MainActor in
                 let monitor = ResetMonitor(onConfirmed: {})
                 await monitor.poll()
@@ -54,6 +69,7 @@ enum EntryPoint {
                 "presentation": "NSMenu + NSHostingView", "minimumMacOS": "13.0", "uiLanguage": "en",
                 "customViews": true, "customDrawing": true, "customPanel": false,
                 "liveCredentialsAccessed": false, "networkRequests": 0,
+                "launchAtLoginMechanism": "SMAppService.mainApp", "launchAtLoginAddsMenuRows": false,
                 "userAgent": RequestIdentity.userAgent,
                 "used": snapshots.map(\.usedText),
                 "progressStyle": "SwiftUI.Capsule.readOnly.4pt", "progressMeaning": "filled = used; empty = remaining",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.19
+
+- Open quietly at user login through macOS's native `SMAppService.mainApp`, registered once on the first normal installed launch. No new helper, LaunchAgent, main window or menu row.
+- Respect removal or disabling in System Settings on later launches. Builds and diagnostics never automatically register login items.
+- Add read-only login-item status and explicit enable/disable controls for local acceptance and rollback. Menu layout, icon, usage sources and notifications are unchanged.
+
 ## 0.6.18
 
 - New clear-glass app icon: a silver Liquid Glass arc over a faint track, like a partly used allowance, on a neutral grey glass backplate. Default and Dark appearances keep the same colours, matching the system's Clear icon style; Tinted and Clear follow the system.

@@ -19,6 +19,7 @@ final class MenuAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var shortcutTestMenuWasOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LaunchAtLogin().configureOnFirstLaunch()
         menu.autoenablesItems = false
         menu.minimumWidth = MenuMetrics.width
         menu.delegate = self
